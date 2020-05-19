@@ -1,0 +1,41 @@
+#!/bin/bash
+
+generate_script() {
+	echo "generating $3"
+	exec 3<$1
+	exec 4<$2
+	echo '#!/bin/bash' > $3
+	echo '# note: this is an auto-generated script (by gen_mac2syn_syn2mac_scripts) - DO NOT EDIT' >> $3
+	echo 'if (( $# == 0 )) ; then set -- /dev/stdin ; fi' >> $3
+	echo 'for i in "$@" ; do' >> $3
+	echo 'cat "$i" | sed \' >> $3
+	while read -u 3 m ; do
+		read -u 4 s
+		echo "	-e 's/$m/$s/g' \\" >> $3
+	done
+	echo >> $3
+	echo 'done' >> $3
+	echo '#EOF' >> $3
+}
+
+# generate translation table
+iconv -f UTF-8 -t UTF-8-MAC utf-8_syn.txt > utf-8_mac.txt
+if (( $(wc -l < utf-8_mac.txt) != $(wc -l < utf-8_syn.txt) )) ; then echo "line count mismatch in utf-8_mac.txt" ; exit ; fi
+
+# extract differences
+diff utf-8_mac.txt utf-8_syn.txt | grep '^> ' | sed -e 's/^> //' > syndiffs.txt
+diff utf-8_mac.txt utf-8_syn.txt | grep '^< ' | sed -e 's/^< //' > macdiffs.txt
+if (( $(wc -l < macdiffs.txt) != $(wc -l < syndiffs.txt) )) ; then echo "line count mismatch in mac/syndiffs.txt" ; exit ; fi
+
+# special case: the special-encoded '/' translates to a ':' on mac
+echo "" >> syndiffs.txt
+echo ":" >> macdiffs.txt
+# note: two other nasty exceptions are ; (as a unicode chr 903) and · which map ambiguously to ; and · with iconv
+# bottom line is that utf-8_mac.txt should not contain duplicates or the scripts will not bijective
+
+generate_script macdiffs.txt syndiffs.txt mac2syn ; chmod 755 mac2syn
+generate_script syndiffs.txt macdiffs.txt syn2mac ; chmod 755 syn2mac
+
+rm utf-8_mac.txt syndiffs.txt macdiffs.txt
+
+#EOF

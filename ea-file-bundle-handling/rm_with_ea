@@ -1,0 +1,9 @@
+#!/bin/bash
+# a special version of rm that also removes the @SynoEAStream and @SynoResource in the ../@eaDir directory
+# $1 must be a regular file
+if [[ -f "$1" ]] ; then
+	rm -v "$1"
+	rm -f "$(dirname "$1")/@eaDir/$(basename "$1")@SynoEAStream"
+	rm -f "$(dirname "$1")/@eaDir/$(basename "$1")@SynoResource"
+fi
+#EOF

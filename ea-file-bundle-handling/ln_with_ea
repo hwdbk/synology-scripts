@@ -1,0 +1,91 @@
+#!/bin/bash
+# usage: ln_with_ea [-f] $1 $2
+# a special version of ln that also links the @SynoEAStream and @SynoResource in the ../@eaDir directory
+# $1 must be a regular file
+# $2 can be a directory (or "." or ""), a new file (i.e. the link to be created) or an existing file (to be replaced by the link)
+# if $2 is empty, ln uses the current directory (".")
+# if -f is specified, the link is enforced, even if the target file exists and its link count is 1 (i.e. will be deleted)
+
+fileid() {
+	# create a unique fileid that are the same for hard links: "<deviceId>_<inodeNumber>"
+	stat -c "%d_%i" "$1"
+}
+
+lnsyno() {
+	# hardlink the @Syno (@SynoEAStream or @SynoResource) file $1 to $2 (both file paths, e.i. dir/@eaDir/file.ext@SynoEAStream or dir/@eaDir/file.ext@SynoResource).
+	# since $1 is assumed to be leading, the $2 @Syno is overwritten if it already exists. this prevents split brain xattrs and dangling files.
+	# the list in $3, if supplied, ensures that hardlinks on @SynoEAStream files are only created for 'non-bogus' xattrs
+	# only if $2 exists as a @Syno file and $1 does _not_ exist, backlink the @Syno file $2 to $1.
+	# this is only safe if the parent files are (also) each others hard links, so this is assumed at call.
+	syno1="$1"
+	syno2="$2"
+	# check if we can hardlink the @Syno file of the source to the associated destination
+	if [[ -f $syno1 ]] && ( [[ -z $3 ]] || grep -qF -f "$3" "$syno1" ) ; then
+		# source @Syno file exists
+		if [[ ! -f $syno2 || $(fileid "$syno1") != $(fileid "$syno2") ]] ; then
+#			echo "linking $syno1 to $2"
+			d=$(dirname "$syno2")
+			mkdir -p "$d"; chmod 777 "$d"
+			ln -f "$syno1" "$syno2"
+		fi
+		return 0 # done
+	fi
+	# at this point (because of the return 0), the source does not have an @Syno file - maybe the dest has and we can backlink?...
+	# check if maybe the destination already had a @Syno file that can be hard linked and associated with the source
+	if [[ -f $syno2 ]] && ( [[ -z $3 ]] || grep -qF -f "$3" "$syno2" ) ; then
+		# at this point, the source does not have a @Syno file and the dest has
+		# - no need to check for [[ ! -f "$syno1" || $(fileid "$syno1") != $(fileid "$syno2") ]] - this is always true
+		echo "backlinking $syno2 to $1"
+		d=$(dirname "$syno1")
+		mkdir -p "$d"; chmod 777 "$d"
+		ln -f "$syno2" "$syno1"
+		return 0
+	fi
+}
+
+if [[ $1 == -f ]] ; then lcnt=0 ; shift ; else lcnt=1 ; fi
+if [[ ! -f $1 ]] ; then echo "$0: no such file: $1" ; exit 1 ; fi
+if [[ -z $2 ]] ; then set -- "$1" "." ; fi
+if [[ -d $2 ]] ; then set -- "$1" "$2/$(basename "$1")" ; fi
+# at this point, both $1 and $2 are file references (which makes the below a lot simpler), of which $1 exists and $2 may exist.
+# distinguish three situations (most likely to least likely):
+# 1) $1 and $2 are already each other's link - no futher linking necessary on $1 and $2
+# OR
+# 2) $2 does not exist and the link can be created normally
+# OR
+# 3) $2 already exists, AND the link count on $2 > 1, AND the file can be forcibly overwritten by a link to $1,
+#    AND its @Syno files can be deleted (because $2 and its @Syno files belong together - this prevents backlinking in the lnsyno call,
+#    which would associate the @Syno file(s) of the deleted old (presumed) link ($2) with the new original ($1) and causes split brain xattrs)
+# THEN try to (back)link the @Syno file(s).
+# NOTE that using this mechanism replaces the target file $2 (which could be a link) and its @Syno file(s) in case these exist, so if this file
+# contains any tag xattrs, the tags need to be reassigned manually on $1. reusing the @SynoEAStream file for this was not an option because that does not
+# sync the old style label xattrs properly (these are stored elsewhere, in 4 different places, see white paper about this mess). so the normal procedure for the user
+# is to move $1 (the original of the link to $2) to a __trash, put a new version in place at $1, reassign the tags and _then_ run this script. in this way,
+# the link count on the trashed file's hardlinks are always kept > 1 and all links will be cleaned up safely. alternatively, if the file at $1 is deleted
+# rather than moved to a __trash before replaced by a new $1, the link count check on the trashed file's link(s) prevents it to be deleted permanently, an error
+# message is displayed and the file can be located and recovered first.
+if	( \
+		[[ -f $2 && $(fileid "$1") == $(fileid "$2") ]] \
+	) || \
+	( \
+		[[ ! -f $2 ]] && ln "$1" "$2" \
+	) || \
+	( \
+		[[ -f $2 ]] && ( (( $(stat -c "%h" "$2") > $lcnt )) || ! echo "not replacing $2 with link to $1 (link count is 1)" ) && echo "replacing $2 with link to $1" && \
+		ln -f "$1" "$2" && \
+		rm -f "$(dirname "$2")/@eaDir/$(basename "$2")@SynoEAStream" && \
+		rm -f "$(dirname "$2")/@eaDir/$(basename "$2")@SynoResource" \
+	) ; then
+	# at this point, $1 and $2 are each other's hard links
+#	if ! [[ -f $1 && -f $2 && $(fileid "$1") == $(fileid "$2") ]] ; then echo "consistency error between $1 and $2" ; exit 1 ; fi
+#	echo "linking the @Syno files of $1 to $2"
+	syno1="$(dirname "$1")/@eaDir/$(basename "$1")@SynoEAStream"
+	syno2="$(dirname "$2")/@eaDir/$(basename "$2")@SynoEAStream"
+	lnsyno "$syno1" "$syno2" xattrs.lst # filter: treat non-bogus xattrs only; if you don't want this, remove xattrs.lst as third parameter
+#	if ! [[ ( ! -e $syno1 && ! -e $syno2 ) || ( -f $syno1 && -f $syno2 && $(fileid "$syno1") == $(fileid "$syno2") ) ]] ; then echo "consistency error between $syno1 and $syno2" ; exit 1 ; fi
+	syno1="$(dirname "$1")/@eaDir/$(basename "$1")@SynoResource"
+	syno2="$(dirname "$2")/@eaDir/$(basename "$2")@SynoResource"
+	lnsyno "$syno1" "$syno2"
+#	if ! [[ ( ! -e $syno1 && ! -e $syno2 ) || ( -f $syno1 && -f $syno2 && $(fileid "$syno1") == $(fileid "$syno2") ) ]] ; then echo "consistency error between $syno1 and $syno2" ; exit 1 ; fi
+fi
+#EOF

@@ -1,0 +1,9 @@
+#!/bin/bash
+# a special version of mv that also moves the @SynoEAStream and @SynoResource in the ../@eaDir directory
+# $1 must be a regular file; $2 must be a target directory
+if [[ -f "$1" && -d "$2" ]] ; then
+	mv -v "$1" "$2"
+	mv -v "$(dirname "$1")/@eaDir/$(basename "$1")@SynoEAStream" "$(dirname "$2")/@eaDir/"
+	mv -v "$(dirname "$1")/@eaDir/$(basename "$1")@SynoResource" "$(dirname "$2")/@eaDir/"
+fi
+#EOF
