@@ -14,16 +14,16 @@ where file could also be a directory:
 
 The scripts handle these files as a file bundle when they are moved/renamed (`mv_with_ea`), deleted (`rm_with_ea`, `rmdir_with_ea`), check if a directory is truly empty (`isemptydir_with_ea`) or create a hard link in a different place (`ln_with_ea`).
 
-## `mv_with_ea`
+### `mv_with_ea`
 The `mv_with_ea` moves or renames the file or directory to a new location or name and moves/renames the `@Syno` files with it in a consistent manner. The only thing that is not updated instantly is the corresponding FinderInfo data in the cnid.db database of the afpd, but no worry, I've found that that is updated as soon as the file is exposed to the Finder of a connected Mac OS client and the `@Syno` files are queried.
 
-## `rm_with_ea`, `rmdir_with_ea`
+### `rm_with_ea`, `rmdir_with_ea`
 These scripts work sort of as expected, I guess.
 
-## `isemptydir_with_ea`
+### `isemptydir_with_ea`
 Script to test if a directory is truly empty, if the @eaDir subdirectory is taken into account (i.e. is ignored).
 
-## `ln_with_ea`
+### `ln_with_ea`
 The `ln_with_ea` script creates a hard link of a file in a different directory on the same file system. It works the same as the `ln` command (without the `-s` because that's for sissies) but also hardlinks (or even backlinks) its associated `@Syno` files if they are present. This allows the hard linked file to share the extended attributes (xattr) of the file it was created from (note: as opposed to `ln -s`, with `ln` there is no such thing as an original file, only an _originating_ file). The great thing about it is that, after hard linking a file, the extended attributes can be changed on the linked file as well as the originating file.
 
 There's one optimisation added to the mix: the (back)linking of the `@SynoEAStream` file only takes place if it contains a 'non-bogus' extended attribute. This is maintained in `xattrs.lst`. This filter was added after I discovered that Apple stores a whole lot of bogus information in the extended attributes (`com.apple.quarantine` is an annoying one, but `com.apple.lastuseddate#PS` is probably the worst). For instance, if you want to link the attribute describing 'the file was downloaded from URL', you should add `com.apple.metadata:kMDItemWhereFroms` and possibly `com.apple.metadata:kMDItemDownloadedDate` to the `xattr.lst`. If you don't want this, just edit line 84 in the script.
