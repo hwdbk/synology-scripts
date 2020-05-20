@@ -1,6 +1,6 @@
 # ea-file-bundle-handling
 
-This directory contains scripts to manage files on a Synology share in conjunction with their attributes sidecar files. For every file stored on a Synology share, Synology may maintain a `@SynoEAStream` and/or `@SynoResource` file. Which file is present (one, both or none) depends on the file attributes as set by the Finder when copying/creating the file, or added later by the Finder. The general structure is:
+This directory contains scripts to manage files on a Synology share in conjunction with their extended attributes' sidecar files. For every file stored on a Synology share, Synology may maintain a `@SynoEAStream` and/or `@SynoResource` file. Which file is present (one, both or none) depends on the file attributes as set by the Finder when copying/creating the file, or added later by the Finder. For extensive information about the gorey details on what is stored where and how (and gorey they are...), see the separate directory on extended attributes. The general structure is:
 
 - `share/directory/file`
 - `share/directory/@eaDir/file@SynoEAStream`
