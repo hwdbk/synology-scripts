@@ -1,6 +1,6 @@
 # ea-file-bundle-handling
 
-This directory contains scripts to manage files on a Synology share in conjunction with their extended attributes' sidecar files. For every file stored on a Synology share, Synology may maintain a `@SynoEAStream` and/or `@SynoResource` file. Which file is present (one, both or none) depends on the file attributes as set by the Finder when copying/creating the file, or added later by the Finder. For extensive information about the gorey details on what is stored where and how (and gorey they are...), see the separate directory on extended attributes. The general structure is:
+This directory contains scripts to manage files on a Synology share in conjunction with their extended attributes' sidecar files. For every file stored on a Synology share, Synology may maintain a `@SynoEAStream` and/or `@SynoResource` file. Which file is present (one, both or none) depends on the file attributes as set by the Finder when copying/creating the file, or added later by the Finder. For extensive information about the gorey details on what is stored where and how (and gorey they are...), see the separate directory on extended attributes. The general structure on disk (the native Synology ext4 or btrfs file system) is:
 
 - `share/directory/file`
 - `share/directory/@eaDir/file@SynoEAStream`
@@ -12,7 +12,7 @@ where file could also be a directory:
 - `share/directory/@eaDir/dir@SynoEAStream`
 - `share/directory/@eaDir/dir@SynoResource`
 
-The scripts handle these files as a file bundle when they are moved/renamed (`mv_with_ea`), deleted (`rm_with_ea`, `rmdir_with_ea`), check if a directory is truly empty (`isemptydir_with_ea`) or create a hard link in a different place (`ln_with_ea`).
+The scripts handle these files as a file bundle when they are moved/renamed (`mv_with_ea`), deleted (`rm_with_ea`, `rmdir_with_ea`), check if a directory is truly empty (`isemptydir_with_ea`) or create a hard link in a different place (`ln_with_ea`). There is also a script that gets rid of all extraneous `@Syno` files (`cleanup_SynoFiles`).
 
 `mv_with_ea`
 
@@ -34,3 +34,16 @@ There's one optimisation added to the mix: the (back)linking of the `@SynoEAStre
 
 The most useful xattr for me is the **`com.apple.metadata:_kMDItemUserTags`**, which is the xattr in which the user tags are stored (both the 'old-style' labels (Finder colours) and the custom Tags. See the directory with tools for handling extended attributes and Finder tags.
 
+`cleanup_SynoFiles`
+
+After using the Synology NAS for a while, I found out that it stored literally thousands of files that don't really contribute in a functional way. These files were sometimes left behind after an incomplete cleanup or delete, but are
+mostly created through Finder extended attributes and resource forks (actually, that's where the pollution started a
+long time ago). It results in every regular file having *at least* two additional sidecar files associated with it, and sometimes more. It does slow down the system, hence this script to get rid of them.
+
+The script scans for and cleans a directory for any extraneous `@Syno` sidecar files. With 'extraneous', I mean:
+- the 'stray' (extraneous) `@SynoEAStream` and `@SynoResource` files, i.e. files that don't have a parent (regular) file.
+- any subdirectories *inside* the `@eaDir` directories (these are used by Synology to store picture previews
+(Photo Station), `SYNO_DTIME` delete timestamps (when using the Trash), and other paraphernalia).
+- the 'bogus' `@SynoEAStream` and `@SynoResource` files ('bogus' means the files don't have any of the meaningful xattrs listed in xattrs.lst, as discussed above).
+- when deleting, it also cleans up any empty `@eaDir` directories that are left behind.
+When used with `-l`, it just lists the extraneous files on stdout, and does not delete anything.
