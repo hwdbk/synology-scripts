@@ -23,7 +23,7 @@
 BPLIST=$(echo -n "bplist" | xxd -ps -c 100)
 
 f=$1
-if ! /root/bin/get_attr -x com.apple.metadata:_kMDItemUserTags "$f" ; then exit 1 ; fi | while true ; do
+if ! get_attr -x com.apple.metadata:_kMDItemUserTags "$f" ; then exit 1 ; fi | while true ; do
 	read -n ${#BPLIST} x # (try to) read "bplist" - this SHOULD be at this position in the file or the offset referencing didn't work
 	if [[ -z $x ]] ; then break ; fi
 	if [[ $x == $BPLIST ]] ; then
