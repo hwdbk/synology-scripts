@@ -1,0 +1,45 @@
+#!/bin/bash
+# script to interpret binary @SynoEAStream files and extract the xattr from the structure
+# input:
+#     get_attr [-x] attr_name file
+#     prints the value of the xattr with key attr_name belonging to the file. use -x to print output in hex (useful for binary values)
+#     the file parameter is either the @SynoEAStream file itself of the (mother) file to which the @SynoEAStream file belongs.
+#     the script assumes that the attr_name extended attribute is present in the file (so you must grep first before calling this script or you'll get an error).
+#     a very efficient way of doing this is with:
+#         grep -arlF <attr_name> <path> --include='*@SynoEAStream' | while read f ; do tag "$f" ; done
+#     or look at the listtags script.
+# output:
+#     the script prints the value of the attribute
+#     if the file does not contain the attribute, the script prints nothing.
+#     prints a msg on stderr when the input is not according to expectation (parse error).
+# note:
+#     the location of the attribute's value is not related to the location of the attribute key string itself, or so investigation revealed
+#     (they are not always following each other). reverse-engineering learnt that the attribute key string is preceded by a string length byte and 10 index bytes
+#     comprising of 4 bytes file offset to the value data, 4 bytes length of the value data and two bytes 0x00.
+
+if [[ $1 == "-x" ]] ; then usehex=y ; shift ; fi
+if [[ $# != 2 ]] ; then echo "usage: $0 [-x] attr_name file" >&2 ; exit 1 ; fi
+if [[ $2 == *@SynoEAStream ]] ; then
+	f=$2
+else
+	f="$(dirname "$2")/@eaDir/$(basename "$2")@SynoEAStream"
+fi
+if [[ ! -f $f ]] ; then echo "$f not found" >&2 ; exit 1 ; fi
+# convert @SynoEAStream file to hex and skip to the attribute key string
+#if ! grep -qF "$1" "$f" ; then echo "$f: no $1 attribute found" >&2; exit ; fi
+# parse the @SynoEAStream as a hex string since it is a binary file
+#len=$((16#$(xxd -ps -s 42 -l 4 "$f"))) # length of the xattr data structure found at offset 42 (0x2a)
+#printf "xattr len=0x%08x\n" $len
+keyoff=$(grep -oba "$1" "$f" | sed -e "s/:.*$//")
+if [[ -z $keyoff ]] ; then echo "$0: $f: No such xattr: $1" >&2 ; exit 1 ; fi
+#printf "key ($1) at 0x%08x\n" $keyoff
+keyoff=$((keyoff-11)) # the data offset and length are preceding the key
+valoff=$((16#$(xxd -ps -s $keyoff -l 4 "$f")))
+vallen=$((16#$(xxd -ps -s $((keyoff+4)) -l 4 "$f")))
+#printf "value at 0x%08x with length 0x%08x\n" $valoff $vallen
+if [[ -n $usehex ]] ; then
+	xxd -ps -s $valoff -l $vallen -c $((vallen*2)) "$f"
+else
+	xxd -ps -s $valoff -l $vallen -c $((vallen*2)) "$f" | xxd -ps -r -
+fi
+#EOF
