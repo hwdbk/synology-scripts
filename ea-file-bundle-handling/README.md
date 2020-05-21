@@ -24,7 +24,7 @@ These scripts work sort of as expected, I guess.
 
 `isemptydir_with_ea`
 
-Script to test if a directory is truly empty, if the @eaDir subdirectory is taken into account (i.e. is ignored).
+Script to test if a directory is empty, if the `@eaDir` subdirectory is taken into account (i.e. is ignored - with an `@eaDir` directory present, the directory would never be empty, even without any regular files or directories in it).
 
 `ln_with_ea`
 
