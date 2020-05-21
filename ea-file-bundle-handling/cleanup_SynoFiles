@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# check parameters
+if [[ $1 == -l ]] ; then lst=y; shift ; fi
+if (( $# == 0 )) ; then err=y ; fi
+# make sure $@ only contains directories or find will create havoc if you pass -exec in $@ by accident
+for d in "$@" ; do if [[ ! -d $d ]] ; then echo "$d: not a dirctory" >&2 ; err=y ; fi ; done
+xat=/root/bin/xattrs.lst
+if [[ ! -f $xat ]] ; then echo "$xat not found - don't know which xattrs are not bogus" >&2 ; exit 1 ; fi
+if [[ -n $err ]] ; then
+	echo "usage: $0 [-l] dir [dir ...]" >&2
+	echo "       delete or list (-l) in specified directories:" >&2
+	echo "       - the 'stray' (extraneous) @SynoEAStream and @SynoResource files" >&2
+	echo "       - any subdirectories inside the @eaDir directories (which are used by Synology to store picture previews" >&2
+	echo "         (Photo Station), SYNO_DTIME delete timestamps (when using the Trash), and other paraphernalia)" >&2
+	echo "       - the 'bogus' @SynoEAStream and @SynoResource files ('bogus' means the files don't have any of the meaningful xattrs listed in $xat)" >&2
+	echo "       - when deleting, it also cleans up any empty @eaDir directories that are left behind" >&2
+	echo "       prints found files and directories on stdout; prints messages on stderr" >&2
+	exit 1
+fi
+
+# find stray @SynoEAStream files, i.e. @SynoEAStream files that don't have the parent file it is supposed to be associated with
+echo "finding stray @SynoEAStream files" >&2
+find "$@" -type f -name '*@SynoEAStream' -print | while read f ; do
+	p=${f/@eaDir\/} ; p=${p%@SynoEAStream}
+	if [[ ! -e "$p" ]] ; then
+		if [[ -n $lst ]] ; then echo "$f" ; else rm -v "$f" ; fi
+	fi
+done
+
+# find stray @SynoResource files, i.e. @SynoResource files that don't have the parent file it is supposed to be associated with
+echo "finding stray @SynoResource files" >&2
+find "$@" -type f -name '*@SynoResource' -print | while read f ; do
+	p=${f/@eaDir\/} ; p=${p%@SynoResource}
+	if [[ ! -e "$p" ]] ; then
+		if [[ -n $lst ]] ; then echo "$f" ; else rm -v "$f" ; fi
+	fi
+done
+
+# find @eaDir subdirectories, but skip the #recycle bin because that contains useful SYNO_DTIME timestamps
+echo "finding @eaDir subdirectories (*/@eaDir/*/)" >&2
+find "$@" -depth -type d -path '*/@eaDir/*' ! -path '*/#recycle/*' -print | while read d ; do
+	if [[ -n $lst ]] ; then echo "$d/" ; else rm -rfv "$d" ; fi
+done
+# now scan the #recycle bin and find any _stray_ @eaDir subdirectories - these are no good
+find "$@" -depth -type d -path '*/#recycle/@eaDir/*' -print | while read d ; do
+	p=${d/@eaDir\/}
+	if [[ ! -e "$p" ]] ; then
+		if [[ -n $lst ]] ; then echo "$d/" ; else rm -rfv "$d" ; fi
+	fi
+done
+
+# find @SynoEAStream files that don't have any of the relevant (non-bogus) xattrs inside
+echo "finding bogus @SynoEAStream files (and their @SynoResource siblings)" >&2
+find "$@" -type f -name '*@SynoEAStream' -print | while read f ; do
+	if ! grep -qF -f $xat "$f" ; then
+		# final paranoia check
+		for i in $(cat $xat) ; do
+			if [[ -n $(/root/bin/get_attr -x "$i" "$f" 2>/dev/null) ]] ; then
+				echo "error: $f has a $i xattr - there's something wrong - exit" >&2 ; exit 1
+			fi
+		done
+		# if this @SynoEAStream is bogus, and happens to have a @SynoResource at its side, it's not necessary either (can be considered bogus as well)
+		s="${f%@SynoEAStream}@SynoResource"
+		if [[ -n $lst ]] ; then
+			echo "$f"
+			if [[ -f "$s" ]] ; then echo "$s" ; fi
+		else
+			rm -v "$f"
+			if [[ -f "$s" ]] ; then rm -v "$s" ; fi
+		fi
+	fi
+done
+
+# find @SynoResource files that don't have a @SynoEAStream file at its side
+echo "finding bogus @SynoResource files" >&2
+find "$@" -type f -name '*@SynoResource' -print | while read f ; do
+	# if this @SynoResource is on its own, it's not necessary either (can be considered bogus as well)
+	s="${f%@SynoResource}@SynoEAStream"
+	if [[ ! -f "$s" ]] ; then
+		if [[ -n $lst ]] ; then echo "$f" ; else rm -v "$f" ; fi
+	fi
+done
+
+# find leftover @eaDir directories
+if [[ ! -n $lst ]] ; then
+	echo "finding leftover (empty) @eaDir directories" >&2
+	find "$@" -depth -type d -name '@eaDir' -empty -exec rmdir -v {} \;
+fi
+
+#EOF
