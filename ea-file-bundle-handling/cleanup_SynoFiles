@@ -55,11 +55,11 @@ echo "finding bogus @SynoEAStream files (and their @SynoResource siblings)" >&2
 find "$@" -type f -name '*@SynoEAStream' -print | while read f ; do
 	if ! grep -qF -f $xat "$f" ; then
 		# final paranoia check
-		for i in $(cat $xat) ; do
-			if [[ -n $(/root/bin/get_attr -x "$i" "$f" 2>/dev/null) ]] ; then
-				echo "error: $f has a $i xattr - there's something wrong - exit" >&2 ; exit 1
-			fi
-		done
+	#	for i in $(cat $xat) ; do
+	#		if [[ -n $(get_attr -x "$i" "$f" 2>/dev/null) ]] ; then
+	#			echo "error: $f has a $i xattr - there's something wrong - exit" >&2 ; exit 1
+	#		fi
+	#	done
 		# if this @SynoEAStream is bogus, and happens to have a @SynoResource at its side, it's not necessary either (can be considered bogus as well)
 		s="${f%@SynoEAStream}@SynoResource"
 		if [[ -n $lst ]] ; then
