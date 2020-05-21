@@ -32,5 +32,5 @@ The `ln_with_ea` script creates a hard link of a file in a different directory o
 
 There's one optimisation added to the mix: the (back)linking of the `@SynoEAStream` file only takes place if it contains a 'non-bogus' extended attribute. This is maintained in `xattrs.lst`. This filter was added after I discovered that Apple stores a whole lot of bogus information in the extended attributes (`com.apple.quarantine` is an annoying one, but `com.apple.lastuseddate#PS` is probably the worst). For instance, if you want to link the attribute describing 'the file was downloaded from URL', you should add `com.apple.metadata:kMDItemWhereFroms` and possibly `com.apple.metadata:kMDItemDownloadedDate` to the `xattr.lst`. If you don't want this, just edit line 84 in the script.
 
-The most useful xattr for me is the **`com.apple.metadata:_kMDItemUserTags`**, which is the xattr in which the user tags are stored (both the 'old-style' labels (Finder colours) and the custom Tags. See the directory with tools for handling extended attributes.
+The most useful xattr for me is the **`com.apple.metadata:_kMDItemUserTags`**, which is the xattr in which the user tags are stored (both the 'old-style' labels (Finder colours) and the custom Tags. See the directory with tools for handling extended attributes and Finder tags.
 
