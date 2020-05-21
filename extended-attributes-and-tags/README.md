@@ -7,7 +7,7 @@ I was triggered on this by new funcionality in the Finder that allowed a user no
 https://github.com/jdberry/tag
 
 These scripts attempt to do the same natively from the Synology side of the afpd tether. It works in two stages:
-- the `get_attr` script retrieves the extended attribute raw data from a file's associated `@SynoEAStream` file.
+- the `get_attr` script retrieves the extended attribute raw data from a file's associated `@SynoEAStream` file. This can be used for any extended attribute, even your own.
 - the `tag` script interprets this raw data and translates it according to the Apple data structures laid out for the `com.apple.metadata:_kMDItemUserTags` extended attribute.
 
-Currently, tags are retrieved read-only. That is because the structure of the `@SynoEAStream` file is already quite complicated just to retrieve the binary data, let alone add or modify extended attributes to that file.
+Currently, extended attributes (and hence, tags) are retrieved read-only. That is because the structure of the `@SynoEAStream` file is already quite complicated just to retrieve the binary data, let alone add or modify extended attributes to that file.
