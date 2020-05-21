@@ -41,9 +41,10 @@ mostly created through Finder extended attributes and resource forks (actually, 
 long time ago). It results in every regular file having *at least* two additional sidecar files associated with it, and sometimes more. It does slow down the system, hence this script to get rid of them.
 
 The script scans for and cleans a directory for any extraneous `@Syno` sidecar files. With 'extraneous', I mean:
-- the 'stray' (extraneous) `@SynoEAStream` and `@SynoResource` files, i.e. files that don't have a parent (regular) file.
+- the 'stray' `@SynoEAStream` and `@SynoResource` files, i.e. files that don't have a parent (regular) file.
 - any subdirectories *inside* the `@eaDir` directories (these are used by Synology to store picture previews
-(Photo Station), `SYNO_DTIME` delete timestamps (when using the Trash), and other paraphernalia).
-- the 'bogus' `@SynoEAStream` and `@SynoResource` files ('bogus' means the files don't have any of the meaningful xattrs listed in xattrs.lst, as discussed above).
+(Photo Station), `SYNO_DTIME` delete timestamps (left behind after restoring files from the `#recycle` bin), and other paraphernalia).
+- the 'bogus' `@SynoEAStream` and `@SynoResource` files ('bogus' means the files don't have any of the meaningful xattrs listed in xattrs.lst, as discussed above - this might need some tweaking to your own taste as I can't determine which xattrs you find useful).
 - when deleting, it also cleans up any empty `@eaDir` directories that are left behind.
+
 When used with `-l`, it just lists the extraneous files on stdout, and does not delete anything.
