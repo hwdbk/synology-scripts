@@ -42,8 +42,8 @@ long time ago). It results in every regular file having *at least* two additiona
 
 The script scans for and cleans a directory for any extraneous `@Syno` sidecar files. With 'extraneous', I mean:
 - the 'stray' `@SynoEAStream` and `@SynoResource` files, i.e. files that don't have a parent (regular) file.
-- any subdirectories *inside* the `@eaDir` directories (these are used by Synology to store picture previews
-(Photo Station), `SYNO_DTIME` delete timestamps (left behind after restoring files from the `#recycle` bin), and other paraphernalia).
+- any subdirectories *inside* the `@eaDir` directories (these are used by Synology to store previews, so if you have
+Photo Station, Audio Station or Video Station running, you will not want this), `SYNO_DTIME` delete timestamps (left behind after restoring files from the `#recycle` bin), and other paraphernalia).
 - the 'bogus' `@SynoEAStream` and `@SynoResource` files ('bogus' means the files don't have any of the meaningful xattrs listed in xattrs.lst, as discussed above - this might need some tweaking to your own taste as I can't determine which xattrs you find useful).
 - when deleting, it also cleans up any empty `@eaDir` directories that are left behind.
 
