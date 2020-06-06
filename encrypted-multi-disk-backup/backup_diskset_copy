@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 bupdir="/volumeSATA1/satashare1-1"
 if [[ ! -d "$bupdir" ]] ; then echo "Backup target directory $bupdir not found - exit" ; exit 1 ; fi
