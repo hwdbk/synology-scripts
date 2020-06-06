@@ -1,5 +1,5 @@
 #!/bin/sh
-# usage: backup_diskset_generate /path/dir1 [ /path/dir2 ... ]
+# usage: backup_diskset_generate /path/dir1 [ /path/dir2 | newdisk ... ]
 
 # constants
 tmpdir=/volume1/backup_mounts/_backup_sets
