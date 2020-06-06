@@ -4,7 +4,7 @@ A collection of (bash) scripts that I've developed over the years to make the us
 There are scripts for:
 - **extended-attributes-and-tags**: retrieving and managing extended attributes that are set from Mac OS, such as custom tags and labels and user xattrs, and access them natively from within the Synology NAS
 - **ea-file-bundle-handling**: managing files with these extended attributes without creating inconsistencies in the synology file system
-- **encrypted-multi-disk-backup**: create a backup spanning multiple disks (if necessary), where each disk contains the data in an encrypted file system. The script generates an index and log which allows you to use the disk individually to restore data (as long as you remember the passphrase).
+- **encrypted-multi-disk-backup**: create a backup spanning multiple disks (if necessary), where each disk contains the data in an encrypted file system. The script generates an index and log which allows you to use the disk(s) individually to restore data (as long as you remember the passphrase).
 - **(pending)** generating and managing directories with hard linked files based on custom criteria, effectively creating collections or repositories from other (source) directories, such as music playlists or movie genres (well, that's what I use it for; your mileage may vary and I'm curious to know)
 - **mac-nfd-conversion**: convert file name character representation between native/normal UTF-8 and MacOSX NFD (normalization form decomposed) representation
 - **(pending)** generating checksum files that allow you to keep track of your files, wherever they go
