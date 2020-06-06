@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # usage: backup_diskset_generate /path/dir1 [ /path/dir2 | newdisk ... ]
 
 # constants
