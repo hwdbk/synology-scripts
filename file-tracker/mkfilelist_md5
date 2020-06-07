@@ -1,0 +1,18 @@
+#!/bin/bash
+
+for i in "$@" ; do
+	if [ -e "$i" ] ; then
+		find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" \) -print | while read f ; do
+			a=$(date -r "$f" +%Y%m%d_%H%M%S)
+			b=$(ls -l "$f" | sed -e 's/ /\t/g' | cut -f 5)
+			c=$(md5sum "$f" | sed -e "s/  /\t/")
+			echo -e "$a\t$b\t$c"
+		done
+	else
+		echo "usage: mkfilelist_md5 directory"
+		echo "print on stdout a list with"
+		echo "modification date<tab>file length<tab>md5sum<tab>file path"
+	fi
+done
+
+#EOF
