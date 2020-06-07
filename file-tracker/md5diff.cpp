@@ -77,7 +77,7 @@ static bool read_info(std::istream& fin, BupInfo& info)
 		if(s4 != "") { // a .md5 or .fst file (modification_date<tab>file_length<tab>[md5sum]<tab>file_path)
 			info.moddate = s1;
 			info.fsize   = s2;
-			info.md5sum  = s3;
+			info.md5sum  = s3; // note: in output created from mkfilelist_fast, this field is empty
 			info.path    = s4;
 		}
 		else if(s2 != "") { // a .md5sum file: moddate and fsize columns missing (md5sum<tab>file_path)
