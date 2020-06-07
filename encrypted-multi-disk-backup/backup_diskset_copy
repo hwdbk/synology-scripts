@@ -1,4 +1,5 @@
 #!/bin/bash
+# usage: backup_diskset_copy [path/]backupsetname_disknum[.lst] [ mountonly | dryrun | nomd5 ]
 
 bupdir="/volumeSATA1/satashare1-1"
 if [[ ! -d "$bupdir" ]] ; then echo "Backup target directory $bupdir not found - exit" ; exit 1 ; fi
@@ -80,16 +81,20 @@ fi
 df -B 1 "$bupdir/$dsk" | tee -a $log # log the final utilisation of the disk
 if [[ $opts = "dryrun" ]] ; then
 	echo "Skipping verification (dry run)" | tee -a $log
-elif [[ $opts = "nomd5" ]] ; then
-	echo "Fast scan of $dsk (save output in $tmpdir/$dsk.fst)" | tee -a $log
-	mkfilelist_fast "$bupdir/$dsk" > "$tmpdir/$dsk.fst"
+	# and don't unmount
 else
-	echo "Verifying $dsk (save output in $tmpdir/$dsk.md5)" | tee -a $log
-	mkfilelist_md5 "$bupdir/$dsk" > "$tmpdir/$dsk.md5"
-	echo Unmounting $dsk
+	if [[ $opts = "nomd5" ]] ; then
+		echo "Fast scan of $dsk (save output in $tmpdir/$dsk.fst)" | tee -a $log
+		/root/bin/mkfilelist_fast "$bupdir/$dsk" > "$tmpdir/$dsk.fst"
+	else
+		# this is the default
+		echo "Verifying $dsk (save output in $tmpdir/$dsk.md5)" | tee -a $log
+		/root/bin/mkfilelist_md5 "$bupdir/$dsk" > "$tmpdir/$dsk.md5"
+	fi
+	echo "Unmounting $dsk"
 	umount "$bupdir/$dsk"
 	rmdir "$bupdir/$dsk"
 fi
-echo Done | tee -a $log
+echo "Done" | tee -a $log
 
 #EOF
