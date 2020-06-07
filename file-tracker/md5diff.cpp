@@ -25,7 +25,7 @@ inline std::string UFExtension(const std::string& path) { return path.substr(pat
 inline bool        UFExists   (const std::string& path) { struct stat buffer; return (stat(path.c_str(), &buffer) == 0); }
 
 static bool sUseModDate = true;  // use modification date in comparisons?
-static bool sNoMD5      = false; // don't use the md5sum but use the moddate and file size instead (for .lst files) (requires sUseModDate true)
+static bool sNoMD5      = false; // don't use the md5sum but use the moddate and file size instead (for .fst files) (requires sUseModDate true)
 
 struct BupInfo
 {
