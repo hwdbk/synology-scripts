@@ -23,4 +23,5 @@ The output of `mkfilelist_fast` is the same as `mkfilelist_md5` except that the 
 lines. This allows fast scans and full scans to be used together (i.e. a full scan can be used as a fast scan, but obviously
 not the other way around). Which brings me to the program to check/process these files.
 
-- `md5diff`
+- `md5diff` is the C++ program (sorry, this algorithm is too complex and compute-intensive to run as a script) to read and compare the lists produced by `mkfilelist_md5` and `mkfilelist_fast`. It works as a diff, reading a left side file and right side file and then comparing the differences.
+
