@@ -32,10 +32,11 @@ struct BupInfo
 //	std::string bupdate;
 	std::string moddate;
 	std::string fsize;
-//	std::string inode; std::string disk;
+//	std::string inode; std::string diskid;
 	std::string md5sum;
-	std::string path;    // full path
+	std::string path;    // full path (directory/filename.ext)
 	std::string fname;   // file name only, calculated field
+	std::string rhsinfo; // field with rhs info to facilitate printout
 };
 
 struct lt_path                 { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return LT1(lhs.path, rhs.path); } };
@@ -92,7 +93,7 @@ static bool read_info(std::istream& fin, BupInfo& info)
 		}
 		info.fname = UFFileName(info.path); // calculated field: file name only of the full path
 		
-//		if(info.fname == ".DS_Store" || info.fname.substr(0,2) == "._") continue; // skip stupid files and hidden files
+		if(info.fname == ".DS_Store" || info.fname.substr(0,2) == "._") continue; // skip stupid files and attribute sidecar files from (ex)FAT(32) volumes (._*)
 		if(info.moddate == "") sUseModDate = false; // file contains empty moddate - can't use in comparisons
 		
 		return true; // found a good info line
@@ -119,6 +120,7 @@ int main(int argc, char **argv)
 		sNoMD5 = true;
 
 	if(argc >= 3 && UFExists(argv[argc-2]) && UFExists(argv[argc-1])) {
+		// force mode of operation
 		if(argc == 4 && std::string(argv[1]) == "-m")
 			sUseModDate = false;
 		if(argc == 4 && std::string(argv[1]) == "-n")
@@ -204,7 +206,7 @@ int main(int argc, char **argv)
 		for(BupInfoList::iterator n = srcR.begin(); n != srcR.end(); ++n) {
 			BupInfoMoved::iterator f = movedL.find(*n);
 			if(f != movedL.end()) { // found item with matching md5sum and path
-				BupInfo info = *f; info.fname = n->path; // misuse fname field
+				BupInfo info = *f; info.rhsinfo = n->path; // store rhs path in rhsinfo
 				moved.insert(info);
 				movedL.erase(f);
 			}
@@ -213,7 +215,7 @@ int main(int argc, char **argv)
 		}
 		std::cout << LF << "# Moved " << moved.size() << " items between " << fnameL << " and " << fnameR << LF;
 		for(BupInfoPrint::iterator n = moved.begin(); n != moved.end(); ++n)
-			std::cout << "=\t" << *n << "\t->\t" << n->fname << LF;
+			std::cout << "=\t" << *n << "\t->\t" << n->rhsinfo << LF;
 	}
 	
 	// now find the items that have been renamed (same dir or from one place to another)
@@ -226,7 +228,7 @@ int main(int argc, char **argv)
 		for(BupInfoMoved::iterator n = srcR.begin(); n != srcR.end(); ++n) {
 			BupInfoRenamed::iterator f = renamedL.find(*n);
 			if(f != renamedL.end()) { // found item with matching md5sum and path
-				BupInfo info = *f; info.fname = n->path; // misuse fname field to store rhs path for nice printout
+				BupInfo info = *f; info.rhsinfo = n->path; // store rhs path in rhsinfo
 				renamed.insert(info);
 				renamedL.erase(f);
 			}
@@ -235,7 +237,7 @@ int main(int argc, char **argv)
 		}
 		std::cout << LF << "# Renamed " << renamed.size() << " items between " << fnameL << " and " << fnameR << LF;
 		for(BupInfoPrint::iterator n = renamed.begin(); n != renamed.end(); ++n)
-			std::cout << ">\t" << *n << "\t->\t" << (UFBaseDir(n->path) == UFBaseDir(n->fname) ? UFFileName(n->fname) : n->fname) << LF;
+			std::cout << ">\t" << *n << "\t->\t" << (UFBaseDir(n->path) == UFBaseDir(n->rhsinfo) ? UFFileName(n->rhsinfo) : n->rhsinfo) << LF; // skip printing the directory if it hasn't changed
 	}
 	
 	// now find the items that have been modified
@@ -253,7 +255,7 @@ int main(int argc, char **argv)
 		for(BupInfoMoved::iterator n = srcR.begin(); n != srcR.end(); ++n) {
 			BupInfoRenamed::iterator f = modifiedL.find(*n);
 			if(f != modifiedL.end()) { // found item with matching path
-				BupInfo info = *f; info.fname = n->moddate + "\t" + n->fsize; // misuse fname field to store rhs moddate\tfsize for nice printout
+				BupInfo info = *f; info.rhsinfo = n->moddate + "\t" + n->fsize; // store rhs moddate and fsize for printout
 				modified.insert(info);
 				modifiedL.erase(f);
 			}
@@ -262,7 +264,7 @@ int main(int argc, char **argv)
 		}
 		std::cout << LF << "# Modified " << modified.size() << " items between " << fnameL << " and " << fnameR << LF;
 		for(BupInfoPrint::iterator n = modified.begin(); n != modified.end(); ++n)
-			std::cout << "*\t" << n->moddate << TAB << n->fsize << "\t->\t" << n->fname << TAB << n->md5sum << TAB << n->path << LF;
+			std::cout << "*\t" << n->moddate << TAB << n->fsize << "\t->\t" << n->rhsinfo << TAB << n->md5sum << TAB << n->path << LF;
 	}
 	
 	// now sort the remaining trees by file path
