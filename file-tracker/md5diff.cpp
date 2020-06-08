@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 				std::pair<BupInfoList::iterator, bool> ins = listL.insert(info);
 				if(!ins.second) { // insertion failed
 					// panic (this shouldn't happen because the path part is definitely unique)
-					std::cerr << "ERROR: failed to insert " << info.path << " in lhs list; md5sum already found in " << ins.first->path << LF;
+					std::cerr << "ERROR: failed to insert " << info.path << " in lhs list; file with this signature already found in " << ins.first->path << LF;
 				}
 			}
 			finL.close();
