@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 			sNoMD5 = true;
 	}
 	else {
-		std::cout << "usage: md5diff [OPTIONS] file1 file2 [-r]" << LF;
+		std::cout << "usage: md5diff [-m|-n] file1 file2 [-r]" << LF;
 		std::cout << "options:" << LF;
 		std::cout << "  -m: ignore modification date fields (use md5sum only)" << LF;
 		std::cout << "  -n: ignore md5sum checksum fields (use modification date and file size only)" << LF;
