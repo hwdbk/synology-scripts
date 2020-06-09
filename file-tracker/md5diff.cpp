@@ -237,7 +237,8 @@ int main(int argc, char **argv)
 		}
 		std::cout << LF << "# Renamed " << renamed.size() << " items between " << fnameL << " and " << fnameR << LF;
 		for(BupInfoPrint::iterator n = renamed.begin(); n != renamed.end(); ++n)
-			std::cout << ">\t" << *n << "\t->\t" << (UFBaseDir(n->path) == UFBaseDir(n->rhsinfo) ? UFFileName(n->rhsinfo) : n->rhsinfo) << LF; // skip printing the directory if it hasn't changed
+//			std::cout << ">\t" << *n << "\t->\t" << (UFBaseDir(n->path) == UFBaseDir(n->rhsinfo) ? UFFileName(n->rhsinfo) : n->rhsinfo) << LF; // skip printing the directory if it hasn't changed
+			std::cout << ">\t" << *n << "\t->\t" << n->rhsinfo << LF;
 	}
 	
 	// now find the items that have been modified
