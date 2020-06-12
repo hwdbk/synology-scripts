@@ -1,16 +1,23 @@
 #!/bin/bash
 
 bupdir="/volumeSATA1/satashare1-1"
+
 if [[ ! -d "$bupdir/@$1@" ]] ; then
-	echo "usage:   $0 olddisksetname_disknum newdisksetname_disknum"
-	echo "example: $0 20181007_005 20190312_005"
+	echo "$0: $bupdir/@$1@: directory not found" >&2
+	echo "usage:   $0 olddisksetname_disknum newdisksetname_disknum" >&2
+	echo "example: $0 20181007_005 20190312_005" >&2
 	exit 1
 fi
 
 if [[ -d "$bupdir/$1" ]] ; then
+	# cleanup old mount directory
 	rmdir "$bupdir/$1"
 fi
-mv -v "$bupdir/@$1@" "$bupdir/@$2@"
-backup_diskset_copy $2 mountonly
+
+if [[ -d "$bupdir/@$1@" && ! -d "$bupdir/@$2@" ]] ; then
+	mv -v "$bupdir/@$1@" "$bupdir/@$2@"
+fi
+
+backup_diskset_copy "$2" mountonly
 
 #EOF
