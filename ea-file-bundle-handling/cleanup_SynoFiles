@@ -4,7 +4,7 @@
 if [[ $1 == -l ]] ; then lst=y; shift ; fi
 if (( $# == 0 )) ; then err=y ; fi
 # make sure $@ only contains directories or find will create havoc if you pass -exec in $@ by accident
-for d in "$@" ; do if [[ ! -d $d ]] ; then echo "$d: not a dirctory" >&2 ; err=y ; fi ; done
+for d in "$@" ; do if [[ ! -d $d ]] ; then echo "$d: not a directory" >&2 ; err=y ; fi ; done
 xat=xattrs.lst
 if [[ ! -f $xat ]] ; then echo "$xat not found - don't know which xattrs are not bogus" >&2 ; exit 1 ; fi
 if [[ -n $err ]] ; then
