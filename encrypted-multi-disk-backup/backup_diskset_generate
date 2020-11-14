@@ -13,8 +13,8 @@ ECRYPTFSHEADER=8192
 # use df -B 1 to get the free space of a fresh formatted disk; then subtract some safe margin
 DS=$((2953141284864 - 10*GB))
 
-mkdir -p "$bsetdir"
-if [[ ! -d "$bsetdir" ]] ; then echo "Directory $bsetdir not found - exit" ; exit ; fi
+if [[ -d "$(dirname "$bsetdir")" ]] ; then mkdir -p "$bsetdir" ; else echo "Directory $(dirname "$bsetdir") not found - exit" ; exit 1 ; fi
+if [[ ! -d "$bsetdir" ]] ; then echo "Directory $bsetdir not found - exit" ; exit 1 ; fi
 
 # backup set name
 name=$TODAY

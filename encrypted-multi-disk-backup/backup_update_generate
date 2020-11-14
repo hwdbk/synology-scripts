@@ -1,0 +1,118 @@
+#!/bin/bash
+# usage: backup_update_generate filelist.fst backup_disksetname_disk1.fst [backup_disksetname_disk2.fst ...]
+# note:  make sure that filelist.fst uses the same UTF-8 encoding as the backup_disksetname_disk.fst file(s)
+# note:  at the moment, because of the use of md5diff.cpp, this script must be run from MacOS or Linux
+
+bupdir="/volumeSATA1/satashare1-1" ; if [[ ! -d $bupdir ]] ; then bupdir="/mnt" ; fi # the directory in which the YYYYMMDD_nnn backup directories will be found
+
+TODAY=$(date +%Y%m%d)
+GB=$((10**9))
+TB=$((10**12))
+EXT4ALLOCBLKSZ=4096
+ECRYPTFSHEADER=8192
+
+# disk size to use - make sure to get the true free space on an empty, formatted disk, not just 3*$TB, for instance
+# use df -B 1 to get the free space of a fresh formatted disk; then subtract some safe margin
+DS=$((2953141284864 - 15*GB))
+
+_newdiskname() {
+	_d=$(basename "$1" .fst)
+	_n=${TODAY}_${_d/*_}
+	echo "$_n"
+}
+
+bupdirX=${bupdir//\//\\/} # bupdir escaped
+src=$TODAY.allsrcdisks.fst
+dff=$TODAY.md5diff.log
+add=$TODAY.add.lst
+tmp=$(mktemp)
+
+tgt="$1" ; shift
+echo "Create backup set from file list: $tgt"
+# rearrange input paramters so they are sorted by disk number
+for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -k 1 > $tmp
+fin=() ; while IFS=$'\t' read a b ; do fin+=($b) ; done < $tmp
+#echo "${fin[@]}"
+echo "Source disks to use (sorted by disknum):" "${fin[@]}"
+cat "${fin[@]}" > "$src"
+md5diff "$src" "$tgt" > "$dff"
+
+# in the md5diff output:
+# lines starting with -: deleted files (wipe list)
+# format:                -\tmoddate\tsize\t[md5sum]\tpath\n
+# lines starting with =: files that moved to a different directory, but keeping its file name (move list)
+# format:                =\tmoddate\tsize\t[md5sum]\tpath\t->\tnewpath\n
+# lines starting with >: files that were renamed (possibly to a different directory) (rename list)
+# format:                >\tmoddate\tsize\t[md5sum]\tpath\t->\tnewpath\n
+# lines starting with *: files that were modified (copy list - these files will be deleted first, then added to the new files list)
+# format:                *\tmoddate\tsize\t->\tnewmoddate\tnewsize\t[md5sum]\tpath\t->\tnewpath\n
+# lines starting with +: files that were added (new files list)
+# format:                +\tmoddate\tsize\t[md5sum]\tpath\n
+
+# list of commands to do with each disk: delete, move, rename & cleanup for copying modified files
+for f in "${fin[@]}" ; do rm -f "$(_newdiskname "$f").lst" ; done
+for pfx in '^-' '^=' '^>' '^*' ; do
+	grep "$pfx" "$dff" > $tmp
+	for f in "${fin[@]}" ; do
+		o=$(basename "$f" .fst) # old disk name
+		d=$(_newdiskname "$f")  # new disk name
+		if [[ $pfx == '^-' ]] ; then
+			# pass the wipe list to the output file, but change the backup disk name from old to new
+			grep "$bupdir/$o/" $tmp | sed -e "s#$bupdir/$o#$bupdir/$d#" >> "$d.lst"
+		elif [[ $pfx == '^=' || $pfx == '^>' ]] ; then
+			# extra filtering: most of the files are already moved in place; it's just that the full path is different
+			grep "$bupdir/$o/" $tmp | while IFS=$'\t' read f1 f2 f3 f4 f5 f6 ; do # f1 is - or > ; f5 is -> ; f6 is a full path (/dir/...)
+				if [[ "${f4/$bupdirX\/$o}" != "$f6" ]] ; then
+					echo -e "$f1\t$f2\t$f3\t\t${f4/$bupdirX\/$o/$bupdir/$d}\t$f5\t$bupdir/$d$f6" >> "$d.lst"
+				fi
+			done
+		else
+			grep "$bupdir/$o/" $tmp >> "$d.lst"
+		fi
+	done
+done
+
+# list of files to add
+rm -f "$add"
+for pfx in '^*' '^+' ; do
+	grep "$pfx" "$dff" >> "$add"
+done
+
+# now calculate the free space on each disk to see how many of the new files can be added
+exec 3<"$add"
+for f in "${fin[@]}" ; do
+	d=$(_newdiskname "$f").lst
+	sz=0
+	# count the files that are currently listed as being on the disk
+	while IFS=$'\t' read f1 f2 f3 ; do
+		bb=$(( (((f2 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ ))
+		sz=$((sz+bb))
+	done < "$f"
+	# subtract the files that will be deleted (incl. those that will be copied because they were modified)
+	while IFS=$'\t' read f1 f2 f3 f4 ; do
+		if [[ $f1 == '-' || $f1 == '*' ]] ; then
+			bb=$(( (((f3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ ))
+			sz=$((sz-bb))
+		fi
+	done < "$d"
+	# now add files to this disk until it is full
+	while IFS=$'\t' read -u 3 a1 a2 a3 a4 ; do
+		bb=$(( (((a3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ ))
+		sz=$((sz+bb))
+		echo -e "$a1\t$a2\t$a3\t\t$a4" >> "$d"
+		if (( $sz > $DS )) ; then break ; fi
+		# note that this breaks out of the loop AFTER the disk size has been exceeded
+		# there is no elegant way to break out BEFORE the disk size is exceeded
+		# as long as the file added is not larger than the free margin (see DS, 10GB in this case), we're OK
+		# so the disk size used on a full disk will be a little more than DS
+	done
+done
+echo LEFTOVER LINES: # todo: write these 'add' lines to new disks.lst files. for the time being, just add empty backupset_nnn.fst input files until all lines are used
+while read -u 3 a1 a2 a3 a4 ; do
+	echo -e "$a1\t$a2\t$a3\t\t$a4"
+done
+exec 3<&-
+
+# cleanup
+rm $tmp
+#EOF

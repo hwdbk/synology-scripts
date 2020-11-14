@@ -9,9 +9,9 @@ for i in "$@" ; do
 			echo -e "$a\t$b\t$c"
 		done
 	else
-		echo "usage: mkfilelist_md5 directory"
-		echo "print on stdout a list with"
-		echo "modification date<tab>file length<tab>md5sum<tab>file path"
+		echo "usage: mkfilelist_md5 directory" >&2
+		echo "print on stdout a list with" >&2
+		echo "modification date<tab>file length<tab>md5sum<tab>file path" >&2
 	fi
 done
 

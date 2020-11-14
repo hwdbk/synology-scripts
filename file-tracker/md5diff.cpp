@@ -1,5 +1,5 @@
 // md5diff.cpp
-// compile with: gcc -o md5diff -lstdc++ md5diff.cpp
+// compile with: g++ -o md5diff md5diff.cpp -lstdc++
 
 #include <string>
 #include <iostream>

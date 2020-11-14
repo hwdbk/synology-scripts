@@ -14,6 +14,12 @@ if [[ -d "$bupdir/$1" ]] ; then
 	rmdir "$bupdir/$1"
 fi
 
+if [[ -d "$bupdir/$2" ]] ; then
+	# target dir may already be mounted - unmount and cleanup
+	umount "$bupdir/$2"
+	rmdir "$bupdir/$2"
+fi
+
 if [[ -d "$bupdir/@$1@" && ! -d "$bupdir/@$2@" ]] ; then
 	mv -v "$bupdir/@$1@" "$bupdir/@$2@"
 fi

@@ -52,14 +52,17 @@ done
 
 # find @SynoEAStream files that don't have any of the relevant (non-bogus) xattrs inside
 echo "finding bogus @SynoEAStream files (and their @SynoResource siblings)" >&2
+# use find followed by ! grep -qF -f because grep -vqFr -f doesn't produce the same result
 find "$@" -type f -name '*@SynoEAStream' -print | while read f ; do
 	if ! grep -qF -f $xat "$f" ; then
-		# final paranoia check
-		for i in $(cat $xat) ; do
-			if [[ -n $(get_attr -x "$i" "$f" 2>/dev/null) ]] ; then
-				echo "error: $f has a $i xattr - there's something wrong - exit" >&2 ; exit 1
-			fi
-		done
+		if true ; then
+			# final paranoia check
+			for i in $(cat $xat) ; do
+				if [[ -n $(get_attr -x -q "$i" "$f") ]] ; then
+					echo "error: $f has a $i xattr - there's something wrong - exit" >&2 ; exit 1
+				fi
+			done
+		fi
 		# if this @SynoEAStream is bogus, and happens to have a @SynoResource at its side, it's not necessary either (can be considered bogus as well)
 		s="${f%@SynoEAStream}@SynoResource"
 		if [[ -n $lst ]] ; then
@@ -72,7 +75,45 @@ find "$@" -type f -name '*@SynoEAStream' -print | while read f ; do
 	fi
 done
 
-# find @SynoResource files that don't have a @SynoEAStream file at its side
+# find remaining @SynoEAStream files that do have any of the relevant (non-bogus) xattrs inside, but they all have an empty value
+echo "finding more bogus @SynoEAStream files (and their @SynoResource siblings)" >&2
+grep -rlF -f $xat "$@" --include='*@SynoEAStream' | while read f ; do
+	# this filters all files with one or more of the (non-bogus) xattrs, but they could be empty (all having an empty value)
+	found=n
+	# visit all xat attributes and check on their values, if one non-empty attr is found, the file is not bogus
+	for i in $(cat $xat) ; do
+		val=$(get_attr -x -q "$i" "$f")
+		# on an empty xattr, the value is either empty or an empty bplist in case of com.apple.metadata:_kMDItemUserTags
+		if [[ -n $val && $val != "62706c6973743030a0080000000000000101000000000000000100000000000000000000000000000009" ]] ; then
+			found=y
+		fi
+	done
+	# check that none of the xat attributes had meaningful data in the value
+	if [[ $found == "n" ]] ; then
+		if true ; then
+			# final paranoia check
+			if [[ -n $(tag "$f") ]] ; then
+				echo "error: $f has a custom tag - there's something wrong - exit" >&2 ; exit 1
+			fi
+			for i in $(cat $xat | grep -v com.apple) ; do
+				if [[ -n $(get_attr -x -q "$i" "$f") ]] ; then
+					echo "error: $f has a $i xattr - there's something wrong - exit" >&2 ; exit 1
+				fi
+			done
+		fi
+		# this @SynoEAStream is bogus, and if it happens to have a @SynoResource at its side, it's not necessary either (can be considered bogus as well)
+		s="${f%@SynoEAStream}@SynoResource"
+		if [[ -n $lst ]] ; then
+			echo "$f"
+			if [[ -f "$s" ]] ; then echo "$s" ; fi
+		else
+			rm -v "$f"
+			if [[ -f "$s" ]] ; then rm -v "$s" ; fi
+		fi
+	fi
+done
+
+# find any remaining @SynoResource files that don't have a @SynoEAStream file at their side
 echo "finding bogus @SynoResource files" >&2
 find "$@" -type f -name '*@SynoResource' -print | while read f ; do
 	# if this @SynoResource is on its own, it's not necessary either (can be considered bogus as well)

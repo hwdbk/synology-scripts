@@ -1,0 +1,115 @@
+#!/bin/bash
+# usage: backup_update_copy [path/]backupsetname_disknum[.lst] [ mountonly | dryrun | nomd5 ]
+
+bupdir="/volumeSATA1/satashare1-1" ; if [[ ! -d $bupdir ]] ; then bupdir=/mnt ; fi
+if [[ ! -d "$bupdir" ]] ; then echo "Backup target directory $bupdir not found - exit" ; exit 1 ; fi
+
+if [[ -f "$1" && $(basename "$1" | sed -e 's/.*\(\....\)$/\1/') = ".lst" ]] ; then
+	# assume backup_diskset_copy [path/]backupsetname_disknum.lst [ mountonly | dryrun ]
+	tmpdir=$(dirname "$1")
+	name=$(basename "$1" | sed -e 's/_[0-9][0-9][0-9].lst$//')
+	dn=$(basename "$1" | sed -e 's/.*_\([0-9][0-9][0-9]\).lst$/\1/' -e 's/[0]*//')
+elif [[ -n $(grep ".*_[0-9][0-9][0-9]$" <<< $1) ]] ; then
+	# assume backup_diskset_copy backupsetname_disknum [ mountonly | dryrun ]
+	tmpdir="/volume1/backup_mounts/_backup_sets" ; if [[ ! -d $tmpdir ]] ; then tmpdir="/root/backup_sets" ; fi
+	name=$(basename "$1" | sed -e 's/_[0-9][0-9][0-9]$//')
+	dn=$(basename "$1" | sed -e 's/.*_\([0-9][0-9][0-9]\)$/\1/' -e 's/[0]*//')
+else
+	echo "usage:   $0 [path/]backupsetname_disknum[.lst] [ mountonly | dryrun | nomd5 ]"
+#	echo "         $0 [path/]@backupsetname_disknum@     [ mountonly | dryrun | nomd5 ]"
+	echo "example: $0 20180805_003 mountonly"
+	echo "note:    when mountonly or dryrun is specified, no log file is created and md5 verification is skipped"
+	exit 1
+fi
+
+dsk=$(printf "%s_%03d" "$name" "$dn")
+opts=$2
+#echo "$bupdir # $tmpdir # $name # $dn # $dsk # $opts" ; exit
+
+if [[ ! -d "$bupdir/$dsk" ]] ; then
+	echo "Mounting $dsk"
+	mkdir -pv "$bupdir/@$dsk@"
+	mkdir -p  "$bupdir/$dsk"
+	if (( $(df -P | grep "$bupdir/$dsk" | wc -l) == 0 )) ; then
+		mount.ecryptfs "$bupdir/@$dsk@" "$bupdir/$dsk" -o rw,noauto,ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y
+		ls -l "$bupdir/$dsk"
+	else
+		echo "Target directory $bupdir/$dsk already mounted"
+		# if the target dir is already mounted, this script can also be run from the task manager (doesn't require user input in that case)
+	fi
+fi
+if [[ $opts = "mountonly" ]] ; then exit ; fi
+
+bdl="$tmpdir/$dsk.lst"
+if [[ ! -f "$bdl" ]] ; then echo "Backup todo list $bdl not found - exit" ; exit 1 ; fi
+log="$tmpdir/$dsk.log"
+if [[ $opts = "dryrun" ]] ; then log=/dev/null ; fi # don't overwrite log file in dryrun (could be enabled if necessary)
+
+echo "Creating backup disk $dn from disk set \"$name\" ($bdl) in $bupdir" | tee $log
+if [[ $opts = "dryrun" ]] ; then echo ">>DRY RUN<<" | tee -a $log ; fi
+
+echo "Cleanup $dsk" | tee -a $log
+# cleanup of files that are no longer in the copy set
+grep '^-' "$bdl" | cut -f 5 | while read f ; do
+	if [[ $opts = "dryrun" ]] ; then
+		echo "Will remove: $f" | tee -a $log
+	else
+		rm "$f" ; # no output to log or stdout, only stderr
+	fi
+done
+
+echo "Moving and renaming files on $dsk" | tee -a $log
+grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f1 f3 f4 f5 f6 ; do #
+	if [[ ! -f $f4 ]] ; then echo "ERROR $f4 not found on $dsk" | tee -a $log ; fi # just checking...
+	mkdir -p "$(dirname "$f6")"
+	if [[ $opts = "dryrun" ]] ; then
+		echo "Will move: $f4 to $f6" | tee -a $log
+	else
+		mv "$f4" "$f6" ; # no output to log or stdout, only stderr
+	fi
+done
+
+# cleanup any trailing empty directories
+if [[ $opts = "dryrun" ]] ; then
+	echo "Skipping empty directory cleanup (in dry run, the relevant directories are not yet emptied)" | tee -a $log
+else
+	echo "Cleanup of empty directories on $dsk" | tee -a $log
+	find "$bupdir/$dsk" -depth -mindepth 1 -type d -empty -exec rmdir {} \; # no output to log or stdout, only stderr
+fi
+df -B 1 "$bupdir/$dsk" | tee -a $log # log how much space was deleted / will be reused
+
+echo "Copying $dsk" | tee -a $log
+# copy files with rsync - using rsync also makes it possible to resume copying after the process got aborted
+# note: with --files-from, the -r (--recursive) from -a is not implied (see man page), so if the input list contains directories, only the directory is copied, not its contents (that's how it should be in this case)
+# note: the --delete-before option doesn't seem to work to clean up any rogue files before copying (for instance, when reusing the disk second time 'round and reusing as many files as possible). hence the files are cleaned out with diff
+flist=$(mktemp) ; grep '^+' "$bdl" | cut -f 5 > $flist
+if [[ $opts = "dryrun" ]] ; then
+	rsync -avn --files-from="$flist" --relative --dirs / "$bupdir/$dsk" | tee -a $log
+else
+	rsync -av --files-from="$flist" --relative --dirs / "$bupdir/$dsk" # no output to log or stdout, only stderr
+fi
+rm $flist
+
+# re-read the disk by calculating the md5 check sums and register the moddate and size
+# the catenation of these files can be crosschecked with the master md5 files using md5diff
+# strip the $bupdir base path from the files listed so they start with $dsk/...
+df -B 1 "$bupdir/$dsk" | tee -a $log # log the final utilisation of the disk
+if [[ $opts = "dryrun" ]] ; then
+	echo "Skipping verification (dry run)" | tee -a $log
+	# and don't unmount
+else
+	if [[ $opts = "nomd5" ]] ; then
+		echo "Fast scan of $dsk (save output in $tmpdir/$dsk.fst)" | tee -a $log
+		mkfilelist_fast "$bupdir/$dsk" | sed -e "s#\t$bupdir/#\t#" > "$tmpdir/$dsk.fst"
+	else
+		# this is the default
+		echo "Verifying $dsk (save output in $tmpdir/$dsk.md5)" | tee -a $log
+		mkfilelist_md5 "$bupdir/$dsk" | sed -e "s#\t$bupdir/#\t#" > "$tmpdir/$dsk.md5"
+	fi
+	echo "Unmounting $dsk"
+	umount "$bupdir/$dsk"
+	rmdir "$bupdir/$dsk"
+fi
+echo "Done" | tee -a $log
+
+#EOF

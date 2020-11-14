@@ -15,9 +15,9 @@ if [ -e "$i" ] ; then
 		done
 	fi
 else
-	echo "usage: mkfilelist_fast file|directory [file|directory ...]"
-	echo "print on stdout a list with"
-	echo "modification date<tab>file length<tab><tab>file path"
+	echo "usage: mkfilelist_fast file|directory [file|directory ...]" >&2
+	echo "print on stdout a list with" >&2
+	echo "modification date<tab>file length<tab><tab>file path" >&2
 fi
 
 done

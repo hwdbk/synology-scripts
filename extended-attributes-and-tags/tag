@@ -3,7 +3,7 @@
 # input:
 #     usage: tag file
 #     the parameter is either the @SynoEAStream file itself of the (mother) file to which the @SynoEAStream file belongs.
-#     the script assumes that the com.apple.metadata:_kMDItemUserTags extended attribute is present in the file (so you must grep first before calling this script or you'll get an error).
+#     the script assumes that the com.apple.metadata:_kMDItemUserTags extended attribute is present in the file, so it is wise to grep first before calling this script
 #     a very efficient way of doing this is with:
 #         grep -arlF "com.apple.metadata:_kMDItemUserTags" <path> --include='*@SynoEAStream' | while read f ; do tag "$f" ; done
 #     or look at the listtags script.
@@ -23,7 +23,7 @@
 BPLIST=$(echo -n "bplist" | xxd -ps -c 100)
 
 f=$1
-if ! get_attr -x com.apple.metadata:_kMDItemUserTags "$f" ; then exit 1 ; fi | while true ; do
+if ! get_attr -x -q com.apple.metadata:_kMDItemUserTags "$f" ; then exit 1 ; fi | while true ; do
 	read -n ${#BPLIST} x # (try to) read "bplist" - this SHOULD be at this position in the file or the offset referencing didn't work
 	if [[ -z $x ]] ; then break ; fi
 	if [[ $x == $BPLIST ]] ; then
