@@ -34,9 +34,9 @@ echo "Executed command: $0 $@" | tee $log
 
 tgt="$1" ; shift
 echo "Create backup set from file list: $tgt" | tee $log
-# rearrange input paramters so they are sorted by disk number
+# rearrange input parameters so they are sorted by disk number
 for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -k 1 > $tmp
-fin=() ; while IFS=$'\t' read a b ; do fin+=($b) ; done < $tmp
+fin=() ; while IFS=$'\t' read a b ; do fin+=("$b") ; done < $tmp
 #echo "${fin[@]}"
 echo "Source disks to use (sorted by disknum):" "${fin[@]}" | tee $log
 cat "${fin[@]}" > "$src"
