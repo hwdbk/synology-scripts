@@ -1,9 +1,9 @@
 #!/bin/bash
 # usage: backup_update_generate filelist.fst backup_disksetname_disk1.fst [backup_disksetname_disk2.fst ...]
-# note:  make sure that filelist.fst uses the same UTF-8 encoding as the backup_disksetname_disk.fst file(s)
+# note:  make sure that: filelist.fst uses the same UTF-8 encoding as the backup_disksetname_disk.fst file(s)
 # note:  at the moment, because of the use of md5diff.cpp, this script must be run from MacOS or Linux
 
-bupdir="/volumeSATA1/satashare1-1" ; if [[ ! -d $bupdir ]] ; then bupdir="/mnt" ; fi # the directory in which the YYYYMMDD_nnn backup directories will be found
+bupdir="/volumeSATA1/satashare1-1" ; if [[ ! -d $bupdir ]] ; then bupdir="/volume1/NetBackup" ; fi # the directory in which the YYYYMMDD_nnn backup directories will be found
 
 TODAY=$(date +%Y%m%d)
 GB=$((10**9))
@@ -38,7 +38,8 @@ echo "Create backup set from file list: $tgt" | tee $log
 for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -k 1 > $tmp
 fin=() ; while IFS=$'\t' read a b ; do fin+=("$b") ; done < $tmp
 #echo "${fin[@]}"
-echo "Source disks to use (sorted by disknum):" "${fin[@]}" | tee $log
+echo "Source disks to use (sorted by disknum):"
+for i in "${fin[@]}" ; do echo "$i" | tee $log ; done
 cat "${fin[@]}" > "$src"
 md5diff "$src" "$tgt" > "$dff"
 
@@ -101,21 +102,16 @@ for f in "${fin[@]}" ; do
 		fi
 	done < "$d"
 	# now add files to this disk until it is full
-	if (( $sz <= ${DS[$n-1]} )) ; then # extra pre-check - the disk may already be full at this point; the below would always add 1 more file, which might fail
-		n=$(basename "$d" .lst) ; n=$(sed -e 's/^.*_0*//' <<< $n)
-		while IFS=$'\t' read -u 3 a1 a2 a3 a4 ; do
-			bb=$(( (((a3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ ))
-			sz=$((sz+bb))
-			echo -e "$a1\t$a2\t$a3\t\t$a4" >> "$d"
-			if (( $sz > ${DS[$n-1]} )) ; then break ; fi
-			# note that this breaks out of the loop AFTER the disk size has been exceeded
-			# there is no elegant way to break out BEFORE the disk size is exceeded (for instance,
-			# something like 'while ( IFS=$'\t' read -u 3 a1 a2 a3 a4 && (( $((sz+a3)) < ${DS[$n-1]} )) ) ; do',
-			# would cause the line to be read anyway and skipped, i.e. not flow over to the next disk).
-			# as long as the file added is not larger than the free margin (see DS), we're OK.
-			# so the disk size used on a full disk will be a little over DS[n-1].
-		done
-	fi
+	n=$(basename "$d" .lst) ; n=$(sed -e 's/^.*_0*//' <<< $n)
+	while (( $sz < ${DS[$n-1]} )) && IFS=$'\t' read -u 3 a1 a2 a3 a4 ; do
+		bb=$(( (((a3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ ))
+		sz=$((sz+bb))
+		echo -e "$a1\t$a2\t$a3\t\t$a4" >> "$d"
+		# note that this loop breaks AFTER the disk size has been exceeded.
+		# there is no elegant way to break out BEFORE the disk size is exceeded.
+		# as long as the file added is not larger than the free margin (see DS), we're OK.
+		# so the disk size used on a full disk will be a little over DS[n-1].
+	done
 done
 echo LEFTOVER LINES: | tee $log # todo: write these 'add' lines to new disks.lst files. for the time being, just add an extra empty backupset_nnn.fst (or .md5) input files until all lines are used
 while read -u 3 a1 a2 a3 a4 ; do
