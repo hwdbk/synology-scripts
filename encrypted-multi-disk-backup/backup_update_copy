@@ -105,11 +105,11 @@ if [[ $opts = "dryrun" ]] ; then
 else
 	if [[ $opts = "nomd5" ]] ; then
 		echo "Fast scan of $dsk (save output in $tmpdir/$dsk.fst)" | tee -a $log
-		mkfilelist_fast "$bupdir/$dsk" | sed -e "s#\t$bupdir/#\t#" > "$tmpdir/$dsk.fst"
+		mkfilelist_fast "$bupdir/$dsk" > "$tmpdir/$dsk.fst"
 	else
 		# this is the default
 		echo "Verifying $dsk (save output in $tmpdir/$dsk.md5)" | tee -a $log
-		mkfilelist_md5 "$bupdir/$dsk" | sed -e "s#\t$bupdir/#\t#" > "$tmpdir/$dsk.md5"
+		mkfilelist_md5 "$bupdir/$dsk" > "$tmpdir/$dsk.md5"
 	fi
 #	echo "Unmounting $dsk"
 #	umount "$bupdir/$dsk"
