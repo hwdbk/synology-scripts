@@ -12,8 +12,11 @@ EXT4ALLOCBLKSZ=4096
 ECRYPTFSHEADER=8192
 
 # disk size to use - make sure to get the true free space on an empty, formatted disk, not just 3*$TB, for instance
-# use df -B 1 to get the free space of a fresh formatted disk; then subtract some safe margin
-DS=$((2953141284864 - 15*GB))
+# use df -B 1 to get the free space of a fresh formatted partition; then subtract some safe margin
+DS2T=$((1962323599360 - 10*GB))
+DS3T=$((2946802712576 - 10*GB))
+DS8T=$((7931730001920 - 10*GB))
+DS=( $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $((DS3T-8268361728)) $DS3T $DS3T $DS8T $DS2T )
 
 _newdiskname() {
 	_d=$(basename "$1" .fst)
@@ -26,14 +29,16 @@ src=$TODAY.allsrcdisks.fst
 dff=$TODAY.md5diff.log
 add=$TODAY.add.lst
 tmp=$(mktemp)
+log="$TODAY.log"
+echo "Executed command: $0 $@" | tee $log
 
 tgt="$1" ; shift
-echo "Create backup set from file list: $tgt"
+echo "Create backup set from file list: $tgt" | tee $log
 # rearrange input paramters so they are sorted by disk number
 for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -k 1 > $tmp
 fin=() ; while IFS=$'\t' read a b ; do fin+=($b) ; done < $tmp
 #echo "${fin[@]}"
-echo "Source disks to use (sorted by disknum):" "${fin[@]}"
+echo "Source disks to use (sorted by disknum):" "${fin[@]}" | tee $log
 cat "${fin[@]}" > "$src"
 md5diff "$src" "$tgt" > "$dff"
 
@@ -96,23 +101,29 @@ for f in "${fin[@]}" ; do
 		fi
 	done < "$d"
 	# now add files to this disk until it is full
-	while IFS=$'\t' read -u 3 a1 a2 a3 a4 ; do
-		bb=$(( (((a3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ ))
-		sz=$((sz+bb))
-		echo -e "$a1\t$a2\t$a3\t\t$a4" >> "$d"
-		if (( $sz > $DS )) ; then break ; fi
-		# note that this breaks out of the loop AFTER the disk size has been exceeded
-		# there is no elegant way to break out BEFORE the disk size is exceeded
-		# as long as the file added is not larger than the free margin (see DS, 10GB in this case), we're OK
-		# so the disk size used on a full disk will be a little more than DS
-	done
+	if (( $sz <= ${DS[$n-1]} )) ; then # extra pre-check - the disk may already be full at this point; the below would always add 1 more file, which might fail
+		n=$(basename "$d" .lst) ; n=$(sed -e 's/^.*_0*//' <<< $n)
+		while IFS=$'\t' read -u 3 a1 a2 a3 a4 ; do
+			bb=$(( (((a3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ ))
+			sz=$((sz+bb))
+			echo -e "$a1\t$a2\t$a3\t\t$a4" >> "$d"
+			if (( $sz > ${DS[$n-1]} )) ; then break ; fi
+			# note that this breaks out of the loop AFTER the disk size has been exceeded
+			# there is no elegant way to break out BEFORE the disk size is exceeded (for instance,
+			# something like 'while ( IFS=$'\t' read -u 3 a1 a2 a3 a4 && (( $((sz+a3)) < ${DS[$n-1]} )) ) ; do',
+			# would cause the line to be read anyway and skipped, i.e. not flow over to the next disk).
+			# as long as the file added is not larger than the free margin (see DS), we're OK.
+			# so the disk size used on a full disk will be a little over DS[n-1].
+		done
+	fi
 done
-echo LEFTOVER LINES: # todo: write these 'add' lines to new disks.lst files. for the time being, just add empty backupset_nnn.fst input files until all lines are used
+echo LEFTOVER LINES: | tee $log # todo: write these 'add' lines to new disks.lst files. for the time being, just add an extra empty backupset_nnn.fst (or .md5) input files until all lines are used
 while read -u 3 a1 a2 a3 a4 ; do
-	echo -e "$a1\t$a2\t$a3\t\t$a4"
+	echo -e "$a1\t$a2\t$a3\t\t$a4" | tee $log
 done
 exec 3<&-
 
 # cleanup
 rm $tmp
+
 #EOF
