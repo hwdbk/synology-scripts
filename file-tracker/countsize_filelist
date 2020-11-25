@@ -1,0 +1,16 @@
+#!/bin/bash
+# count (sum up, add) the file sizes in the .md5/.fst files, or an md5diff output (or backupset .lst file)
+# reads from stdin or a bunch of files
+
+n=0
+while IFS=$'\a' read a b c d ; do
+	if [[ $a = '#' ]] ; then continue
+	elif [[ $a =~ [+-=\>] ]] ; then
+		n=$((n+c))
+	else
+		n=$((n+b))
+	fi
+done < <(if [[ $# == 0 ]] ; then cat <&0 ; else cat "$@" ; fi | tr '\t' '\a')
+echo $n
+
+#EOF
