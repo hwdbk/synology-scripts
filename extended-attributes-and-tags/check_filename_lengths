@@ -1,0 +1,11 @@
+#!/bin/bash
+# usage: check_filename_lengths [-len] dir|file [dir|file ...]
+#        len=130 by default (the longest filename not to cause problems with @Syno files)
+if [[ $1 == -* ]] ; then len=${1:1} ; shift ; else len=130 ; fi
+find "$@" -type f ! -path "*/@eaDir/*" | while read i ; do
+	j=$(basename "$i")
+	if (( ${#j} > len )) ; then
+		echo "${#j} $i"
+	fi
+done | sort -n -k 1
+#EOF
