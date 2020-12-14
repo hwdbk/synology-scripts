@@ -4,18 +4,16 @@ if [[ $1 == "-f" ]] ; then
 	if [[ -f $2 ]] ; then prevmd5=$2 ; shift 2 ; else echo "$0: wrong parameter: $1 $2" >&2 ; exit 1 ; fi
 fi
 
-t=$(printf '\t')
-
 for i in "$@" ; do
 	if [ -e "$i" ] ; then
 		# use GNU find -printf format (on Mac OS X, you must install gfind from macports or brew)
 		find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sed -e 's/\(^........_......\)\.[0-9]*/\1/' | while IFS=$'\t' read a b f ; do
 			c=
 			if [[ -n $prevmd5 ]] ; then
-				g=$f ; for i in '^' '.' '[' ']' '$' ; do g=${g//$i/\\$i} ; done ; g=${g//\*/\\*} # escaped version of f
+				g=$f ; for i in '^' '.' '+' '|' '(' ')' '[' ']' '$' ; do g=${g//$i/\\$i} ; done ; g=${g//\?/\\?} ; g=${g//\*/\\*} # escaped version of f to be used in grep -P (note: grep -P requires other chrs to be escaped than plain grep)
 				while IFS=$'\t' read f1 f2 f3 f4 ; do
 					c="$f3-\t$f" # use the result from prevmd5
-				done < <(grep "^$a$t$b$t[0-9a-f-]*$t$g\$" $prevmd5)
+				done < <(grep -P "^$a\t$b\t[0-9a-f-]*\t$g\$" $prevmd5)
 			fi
 			if [[ -z $c ]] ; then # no previous value for md5sum used - we need to calculate
 				if [[ -n $prevmd5 ]] ; then echo "$0: info: calculating md5sum for $f" >&2 ; fi
