@@ -91,7 +91,6 @@ static bool read_info(std::istream& fin, BupInfo& info)
 			std::cerr << "WARNING: skipping misformed line " << cnt << ": '" << line << "'" << LF;
 			continue; // skip misformed line (instead of returning false)
 		}
-		if(info.md5sum.length() > 32) info.md5sum.resize(32); // strip any trailing chrs (like dashes)
 		info.fname = UFFileName(info.path); // calculated field: file name only of the full path
 		
 		if(info.fname == ".DS_Store" || info.fname.substr(0,2) == "._") continue; // skip stupid files and attribute sidecar files from (ex)FAT(32) volumes (._*)
@@ -134,7 +133,7 @@ int main(int argc, char **argv)
 		std::cout << "  -n: ignore md5sum checksum fields (use modification date and file size only)" << LF;
 		std::cout << "  -r: reverse (swap) file1 and file2" << LF;
 		std::cout << "reads tab-separated files:" << LF;
-		std::cout << "  .md5: files created with mkfilelist_md5" << LF;
+		std::cout << "  .md5: files created with mkfilelist_md5 or mkfilelist_tag" << LF;
 		std::cout << "        with lines formatted like moddate<tab>fsize<tab>md5sum<tab>path" << LF;
 		std::cout << "  .fst: files created with mkfilelist_fast" << LF;
 		std::cout << "        with lines formatted like moddate<tab>fsize<tab><tab>path" << LF;
