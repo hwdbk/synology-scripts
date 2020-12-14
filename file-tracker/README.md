@@ -50,3 +50,5 @@ lines starting with +: files that were added ('new files' list)
   format: `+\tmoddate\tsize\t[md5sum]\tpath\n`
 
 The output is checked/filtered easily by using grep, e.g. `md5diff oldfs.md5 newfs.md5 | grep ^-` will filter the list of deleted files, etc.
+
+`md5diff` is also the basis for the `backup_update_...` scripts because it directs these scripts to handle file movement, modifications, deletions and additions from snapshot to snapshot (the .fst or .md5 file being the 'snapshot').
