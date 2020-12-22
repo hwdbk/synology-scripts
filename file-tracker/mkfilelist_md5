@@ -1,7 +1,20 @@
 #!/bin/bash
 
+# uses associative array: requires bash 4 or later
+if (( ${BASH_VERSION%%.*} < 4 )) ; then
+	echo "error: $0 requires bash v4 or later" >&2
+	exit 1
+fi
+
 if [[ $1 == "-f" ]] ; then
-	if [[ -f $2 ]] ; then prevmd5=$2 ; shift 2 ; else echo "$0: wrong parameter: $1 $2" >&2 ; exit 1 ; fi
+	if [[ -f $2 ]] ; then
+		prevmd5=$2 ; shift 2
+		declare -A md5
+		while read a b m f ; do md5+=(["$a\t$b\t$f"]=$m) ; done < "$prevmd5"
+		echo "read ${#md5[@]} md5sums from $prevmd5" >&2
+	else
+		echo "$0: wrong parameter: $1 $2" >&2 ; exit 1
+	fi
 fi
 
 for i in "$@" ; do
@@ -10,10 +23,11 @@ for i in "$@" ; do
 		find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sed -e 's/\(^........_......\)\.[0-9]*/\1/' | while IFS=$'\t' read a b f ; do
 			c=
 			if [[ -n $prevmd5 ]] ; then
-				g=$f ; for i in '^' '.' '+' '|' '(' ')' '[' ']' '$' ; do g=${g//$i/\\$i} ; done ; g=${g//\?/\\?} ; g=${g//\*/\\*} # escaped version of f to be used in grep -P (note: grep -P requires other chrs to be escaped than plain grep)
-				while IFS=$'\t' read f1 f2 f3 f4 ; do
-					c="$f3-\t$f" # use the result from prevmd5
-				done < <(grep -P "^$a\t$b\t[0-9a-f-]*\t$g\$" $prevmd5)
+#				g=$f ; for i in '^' '.' '+' '|' '(' ')' '[' ']' '$' ; do g=${g//$i/\\$i} ; done ; g=${g//\?/\\?} ; g=${g//\*/\\*} # escaped version of f to be used in grep -P (note: grep -P requires other chrs to be escaped than plain grep)
+#				while IFS=$'\t' read f1 f2 f3 f4 ; do
+#					c="$f3-\t$f" # use the result from prevmd5
+#				done < <(grep -P "^$a\t$b\t[0-9a-f-]*\t$g\$" $prevmd5)
+				c=${md5["$a\t$b\t$f"]} ; if [[ -n $c ]] ; then c="$c-\t$f" ; fi
 			fi
 			if [[ -z $c ]] ; then # no previous value for md5sum used - we need to calculate
 				if [[ -n $prevmd5 ]] ; then echo "$0: info: calculating md5sum for $f" >&2 ; fi
