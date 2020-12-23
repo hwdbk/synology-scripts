@@ -1,0 +1,67 @@
+#!/bin/bash
+# usage: cleanup_links [-d] [-t trash_dir] dir_with_links [dir ...] file_with_linked_filepaths_list
+# cleanup directories with linked files: check for files.ext or symlinks~ in dir_with_links, not found in the file
+# file_with_linked_filepaths_list (originals have probably been renamed or deleted)
+# the script matches the full path of the files found in dir_with_links with the file paths found in file_with_linked_file_list
+# -d also cleans up any empty directories (i.e. all linked files in that directory have been deleted), but preserves tagged directories
+# -t moves files and directories to the indicated trash_dir
+# note: skips files without extension (such as unix scripts) but does include symlinks~
+# note: does not assume that file_with_linked_filepaths_list is sorted - this script will sort this list prior to matching with the files found in dir
+#
+# check parameters
+if [[ $1 == -d ]] ; then cleanupdirs=y ; shift ; fi
+if [[ $1 == -t ]] ; then if [[ -d "$2" ]] ; then trash=$2 ; shift 2 ; else echo "illegal option: $1 $2" ; exit 1 ; fi ; fi
+dir=("${@:1:$#-1}") # list of arguments except the last - source directories to scan
+for d in "${dir[@]}" ; do if [[ ! -d "$d" ]] ; then echo "source directory $d does not exist - exiting" ; exit 1 ; fi ; done
+lst=${@:$#:1} # last argument - the list with created links (full paths)
+if [[ ! -f $lst ]] ; then echo "Usage: $0 dir_with_links [dir ...] file_with_linked_file_list" ; exit 1 ; fi
+#echo "-- cleanup from $(cat "$lst" | wc -l) registered entries"
+#
+tmp=$(mktemp) # wipe list (candidates) for directories
+tmp1=$(mktemp) ; sort -u "$lst" > $tmp1
+tmp2=$(mktemp)
+
+find "${dir[@]}" \( -type f -name "*.*" -o -type l -name "*~" \) ! -path "*/@eaDir/*" -print | sort > $tmp2
+#diff $tmp1 $tmp2 | grep '^[<>]' ; exit # debug: should not print '<' items, the '>' items will be deleted below
+diff $tmp1 $tmp2 | grep '^>' | sed -e 's/^> //' | while read i ; do
+	# we have a file that needs to be (re)moved
+	if [[ -n $trash ]] ; then
+		#echo "moving $i to $trash"
+		p=$(dirname "$trash") ; q=${i#$p} ; q=$(dirname "$q") # calculate the directory of $i relative to $trash (todo: check what happens if $i or $trash contains ../)
+		mkdir_user -p "$trash/$q"
+		mv_with_ea "$i" "$trash/$q"
+	elif [[ -f $i ]] ; then
+		#echo "unlinking $i"
+		rm_with_ea "$i"
+	elif [[ -h $i ]] ; then
+		#echo "removing symlink $i"
+		rm -v "$i"
+	else
+		echo "can not remove $i: not found"
+	fi
+	echo "$(dirname "$i")" >> $tmp
+done
+
+# try to cleanup the directories that may have been left behind - no effect if there's still files in there
+if [[ -n $cleanupdirs ]] ; then
+	# the sort filters out duplicates (-u) and in reverse (-r) so the directories will be deleted depth-first
+	# this is a very efficient method because a) usually, there aren't that many deletes and b) only 1 pass per directory (through using -u)
+	sort -u -r $tmp | while read d ; do
+		if isemptydir_with_ea "$d" ; then
+			if [[ -z $(tag "$d") ]] ; then
+				echo "cleanup empty directory $d"
+				rmdir_with_ea "$d"
+			elif [[ -n $trash ]] ; then
+				echo "moving tagged directory $d to $trash"
+				mv_with_ea "$d" "$trash"
+			else
+				echo "keeping empty but tagged directory $d"
+			fi
+		fi
+	done
+fi
+
+#echo "$tmp $tmp1 $tmp2"
+rm -f $tmp $tmp1 $tmp2
+
+#EOF
