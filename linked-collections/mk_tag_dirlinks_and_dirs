@@ -13,7 +13,7 @@ find "$@" -mindepth 1 -type d ! -name "@eaDir" -print | while read d ; do
 		f="$tag/$(basename "$d")~"
 		# auto-create of tag directories
 		if [[ ! -d "$dst/$tag" ]] ; then
-			mkdir_user -p "$dst/$tag"
+			mkdir -p "$dst/$tag"
 		fi
 		if [[ -d "$dst/$tag" ]] ; then
 			echo "./$f" >> $tmp

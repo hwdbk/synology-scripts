@@ -13,7 +13,7 @@ grep -arlF "com.apple.metadata:_kMDItemUserTags" "${dir[@]}" --include='*@SynoEA
 		tag "$i" | while read tag ; do
 			case $tag in Red | Orange | Yellow | Green | Blue | Purple | Gray) tag="Labels/$tag" ;; esac
 			f=$(basename "$i")
-			mkdir_user -p "$dst/$tag"
+			mkdir -p "$dst/$tag"
 			echo "$dst/$tag/$f" >> $tmp
 			if [[ ! -f "$dst/$tag/$f" ]] ; then
 				echo linking "$i" in "$dst/$tag"

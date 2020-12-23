@@ -28,7 +28,7 @@ diff $tmp1 $tmp2 | grep '^>' | sed -e 's/^> //' | while read i ; do
 	if [[ -n $trash ]] ; then
 		#echo "moving $i to $trash"
 		p=$(dirname "$trash") ; q=${i#$p} ; q=$(dirname "$q") # calculate the directory of $i relative to $trash (todo: check what happens if $i or $trash contains ../)
-		mkdir_user -p "$trash/$q"
+		mkdir -p "$trash/$q"
 		mv_with_ea "$i" "$trash/$q"
 	elif [[ -f $i ]] ; then
 		#echo "unlinking $i"
