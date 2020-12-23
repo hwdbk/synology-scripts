@@ -1,0 +1,27 @@
+#!/bin/bash
+# usage: mk_tag_dirlinks dir [dir ...]
+# example: mk_tag_dirlinks ../Clips ../../MoreClips
+# IMPORTANT: script can only be run from the current dir as target dir, otherwise the relative symlinks won't work on every platform
+dst=.
+# check parameters (make sure $@ only contains directories or find will create havoc if you pass -exec in $@ by accident)
+for d in "$@" ; do if [[ ! -d "$d" ]] ; then echo "$0: source directory $d does not exist - exiting" >&2 ; exit 1 ; fi ; done
+tmp=$(mktemp) # tmp file to collect the links so we can cleanup those that don't belong in the target dir afterwards with cleanup_links
+find "$@" -mindepth 1 -type d ! -name "@eaDir" -print | while read d ; do
+	# now check if the directory has any tags
+	tag "$d" | while read tag ; do
+		f="$tag/$(basename "$d")~"
+		# only create a symlink if the tag directory exists (allows filtering of tags, i.e. no auto-create of tag directories)
+		if [[ -d "$dst/$tag" ]] ; then
+			echo "./$f" >> $tmp
+			if [[ ! -h "$dst/$f" ]] ; then
+				echo symlinking "$d" in "$tag"
+				ln -s "../$d" "$dst/$f"
+				# note: add the extra .. because the link originates from the subdir $tag
+				# symlinks created by root are actually ok because it prevents a user to mess with (and break) them
+			fi
+		fi
+	done
+done
+cleanup_links -d "$dst" $tmp
+rm $tmp
+#EOF

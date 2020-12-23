@@ -1,0 +1,27 @@
+#!/bin/bash
+# usage: mk_tag_links_with_dirs dir [dir ...] target_dir
+dir=("${@:1:$#-1}") # list of arguments except the last - source directories to scan for the tag
+dst=${@:$#:1} # last argument - target directory to create the hard links in
+# check parameters
+for d in "${dir[@]}" ; do if [[ ! -d "$d" ]] ; then echo Source directory "$d" does not exist - exiting ; exit 1 ; fi ; done
+if [[ ! -d "$dst" ]] ; then echo Target directory "$dst" does not exist - exiting ; exit 1 ; fi
+tmp=$(mktemp) # tmp file to collect the links so we can cleanup those that don't belong in the target dir afterwards with cleanup_links
+grep -arlF "com.apple.metadata:_kMDItemUserTags" "${dir[@]}" --include='*@SynoEAStream' --exclude='*html@SynoEAStream' | grep -v -- "-/" | while read i ; do
+	i=${i/@eaDir\/} ; i=${i%@SynoEAStream}
+	# prefiltered candidate file with tag string(s) in it is found - make sure it is a regular file (e.g. not a directory)
+	if [[ -f "$i" ]] ; then
+		tag "$i" | while read tag ; do
+			case $tag in Red | Orange | Yellow | Green | Blue | Purple | Gray) tag="Labels/$tag" ;; esac
+			f=$(basename "$i")
+			mkdir_user -p "$dst/$tag"
+			echo "$dst/$tag/$f" >> $tmp
+			if [[ ! -f "$dst/$tag/$f" ]] ; then
+				echo linking "$i" in "$dst/$tag"
+			fi
+			ln_with_ea "$i" "$dst/$tag"
+		done
+	fi
+done
+cleanup_links -d "$dst" $tmp
+rm $tmp
+#EOF
