@@ -38,8 +38,17 @@ The algorithm is self-managing: if you change tags (add, remove, rename), the li
 
 ## Hard links
 
-The scripts use hard links for files throughout. It would use hard links for directories, but that is not possible hence the symlinks. Hard links are great because they remain in tact if any of the linked files are renamed or moved around (as opposed to symlinks, which immediatly stop working in those
+The scripts use hard links for files throughout. It would use hard links for directories, if that were possible. It isn't, hence the symlinks. Hard links are great because they remain in tact if any of the linked files are renamed or moved around (as opposed to symlinks, which immediatly stop working in those
 cases). The scripts use the ln_with_ea scripts to keep consistent links between the actual file and its extended attributes. This effectively creates the
 `@SynoEAStream` file as a hard link sidecar file, which in turn allows you to tag the 'originals' or the 'linked copies'. Again, in the above example, if
 you tag the movie inside `/volume/share/movies/genres-/Science Fiction/Robot` with "Art movie", running the script will create another hard link to
 the movie (and its `@Syno` files) inside `/volume/share/movies/genres-/Art movie`. So, you don't have to locate the original Robot movie to do so.
+
+## Other uses
+
+The mechanism of creating file or directory collections by tag is powerful. For instance, when working from a directory tree with master photos, albums can be
+created by tagging the appropriate photos with the album name. Also, the collection mechanism isn't necessary limited to tagging files (i.e. through the
+`com.apple.metadata:_kMDItemUserTags` extended attribute from the Finder). This is just the mechanism used by the above scripts (and because it is easy to use and appeals tot the imagination).
+Other applications might involve extracting or calculating a certain piece from the file's other attributes, such as part of the filename, modification date
+or file size. Example: suppose your movies are named "Title (year).ext", then "year" could be extracted from the name and used as if it were a tag, creating
+a collection of movies by year. If the linked files are tracked in a listing file, maintenance and cleanup can be done with `cleanup_links`.
