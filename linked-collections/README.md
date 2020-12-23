@@ -22,6 +22,9 @@ deleted safely, not touching the originals.
 Symlinks to directories are created with names ending in `~`; that's just for convenience and a visual indication that it is a symlink
 created with this mechanism.
 
+The tags are standard or custom Finder tags. That is, any of the 'label colours' Red, Orange, Yellow, Green, Blue, Purple or Gray, or any custom
+tag that you make up yourself. Tag may contain slashes (`/`) to indicate subtags (see example below).
+
 ## Example
 
 Suppose you have a collection of movies in, say, `/volume/share/movies`. There may be any number of subdirectories and stucture below this. Now
