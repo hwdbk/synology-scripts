@@ -30,7 +30,7 @@ tag that you make up yourself. Tag may contain slashes (`/`) to indicate subtags
 Suppose you have a collection of movies in, say, `/volume/share/movies`. There may be any number of subdirectories and stucture below this. Now
 you want to create a cross-collection with genres and you assign Finder custom tags to a number of movies based on its genre, such as "Science
 Fiction", "Drama", "Art movie" and you want these genres to go in `/volume/share/movies/genres-`. Note the `-` at the end, because `genres-` is
-located inside the source tree `movies`. Then, the command `mk_tag_links_and_dirs /volume/share/movies /volume/share/movies/genres-` will create
+located inside the source tree `movies` and the `-` will prevent endless recursion. Then, the command `mk_tag_links_and_dirs /volume/share/movies /volume/share/movies/genres-` will create
 the directories `/volume/share/movies/genres-/Science Fiction`, `/volume/share/movies/genres-/Drama` and `/volume/share/movies/genres-/Art movie`
 as it discovers the movies tagged as such, and creates hard links to those movies inside the genre directory. It even works with subgenres
 (subtags); for instance, when you tag a movie with "Science Fiction/Robot", the hard link will be created in `/volume/share/movies/genres-/Science Fiction/Robot`.
