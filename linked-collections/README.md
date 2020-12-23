@@ -9,6 +9,9 @@ The latter case allows you to filter which tags makes it into the collection.
 - `mk_tag_links_and_dirs` creates hard links to files in a collection directory, and auto-creates the output directories.
 - `mk_tag_dirlinks` creates symlinks to directories in a collection directory, but only if the directory with the tag name exists.
 - `mk_tag_dirlinks_and_dirs` creates symlinks to directories in a collection directory, and auto-creates the output directories.
+- `cleanup_links` is used by the above scripts to cleanup remnants in the collection directory. Remnants are: files whose tag has
+been removed or renamed, or files that are no longer in the source tree. The script has several options to move deleted files to a trash
+directory and/or to cleanup any empty collection subdirectories (when a certain tag is no longer used).
 
 ## Convention
 
@@ -29,3 +32,11 @@ the directories `/volume/share/movies/genres-/Science Fiction`, `/volume/share/m
 as it discovers the movies tagged as such, and creates hard links to those movies inside the genre directory. It even works with subgenres
 (subtags); for instance, when you tag a movie with "Science Fiction/Robot", the hard link will be created in `/volume/share/movies/genres-/Science Fiction/Robot`.
 The algorithm is self-managing: if you change tags (add, remove, rename), the links will be adjusted accordingly.
+
+## Hard links
+
+The scripts use hard links for files throughout. It would use hard links for directories, but that is not possible hence the symlinks. Hard links are great because they remain in tact if any of the linked files are renamed or moved around (as opposed to symlinks, which immediatly stop working in those
+cases). The scripts use the ln_with_ea scripts to keep consistent links between the actual file and its extended attributes. This effectively creates the
+`@SynoEAStream` file as a hard link sidecar file, which in turn allows you to tag the 'originals' or the 'linked copies'. Again, in the above example, if
+you tag the movie inside `/volume/share/movies/genres-/Science Fiction/Robot` with "Art movie", running the script will create another hard link to
+the movie (and its `@Syno` files) inside `/volume/share/movies/genres-/Art movie`. So, you don't have to locate the original Robot movie to do so.
