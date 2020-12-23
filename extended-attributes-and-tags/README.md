@@ -9,7 +9,7 @@ https://github.com/jdberry/tag
 These scripts attempt to do the same natively from the Synology side of the afpd tether. It works in two stages:
 - the `get_attr` script retrieves the extended attribute raw data from a file's associated `@SynoEAStream` file. This can be used for any extended attribute, even your own.
 - the `tag` script interprets this raw data and translates it according to the Apple data structures laid out for the `com.apple.metadata:_kMDItemUserTags` extended attribute.
-- the script `check_filename_lengths` checks if the file names used are not too long. This is an issue because when the eCryptfs file system is used, the file name is limited to 143 characters; if you want to use extended attributes on top, the file name has to have room for the string `@SynoResource` and/or `@SynoEAStream`, limiting the effective max. file name length to 130 (this is the default in the script).
+- the script `check_filename_lengths` checks if the file names used are not too long. This is an issue because when the eCryptfs file system is used, the file name is limited to 143 characters; if you want to use extended attributes on top, the file name has to have room for the suffix `@SynoResource` or `@SynoEAStream`, limiting the effective max. file name length to 130 (this is the default in the script).
 PS> Synology allows you to set extended attributes on filenames with length between 131 and 143, but it uses an undocumented mangling algorithm to keep the `@SynoResource` and/or `@SynoEAStream` file name at 143 characters exactly:
 
 ```
@@ -41,4 +41,4 @@ File names with 131-143 characters
 1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567894@SynoEAStream
 ```
 
-Currently, extended attributes (and hence, tags) are retrieved read-only. That is because the structure of the `@SynoEAStream` file is already quite complicated just to retrieve the binary data, let alone add or modify extended attributes to that file.
+Currently, extended attributes (and hence, tags) are retrieved read-only. That is because the structure of the `@SynoEAStream` file, after reverse-engineering already turned out to be quite complicated just to retrieve the binary data, let alone add or modify extended attributes to that file.
