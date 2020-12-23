@@ -51,4 +51,4 @@ created by tagging the appropriate photos with the album name. Also, the collect
 `com.apple.metadata:_kMDItemUserTags` extended attribute from the Finder). This is just the mechanism used by the above scripts (and because it is easy to use and appeals tot the imagination).
 Other applications might involve extracting or calculating a certain piece from the file's other attributes, such as part of the filename, modification date
 or file size. Example: suppose your movies are named "Title (year).ext", then "year" could be extracted from the name and used as if it were a tag, creating
-a collection of movies by year. If the linked files are tracked in a listing file, maintenance and cleanup can be done with `cleanup_links`.
+a collection of movies by year. As long as the linked files are tracked in a listing file, maintenance and cleanup can be done with `cleanup_links`.
