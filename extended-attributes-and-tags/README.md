@@ -9,7 +9,7 @@ I was triggered on this by new funcionality in the Finder that allowed a user no
 
 https://github.com/jdberry/tag
 
-These scripts attempt to do the same natively from the Synology side of the afpd tether. It works in two stages:
+The scripts provided here attempt to do the same natively from the Synology side of the afpd tether. It works in two stages:
 - the `get_attr` script retrieves the extended attribute raw data from a file's associated `@SynoEAStream` file. This can be used for any extended attribute, even your own.
 - the `tag` script interprets this raw data and translates it according to the Apple data structures laid out for the `com.apple.metadata:_kMDItemUserTags` extended attribute.
 - the script `check_filename_lengths` checks if the file names used are not too long. This is an issue because when the eCryptfs file system is used, the file name is limited to 143 characters; if you want to use extended attributes on top, the file name has to have room for the suffix `@SynoResource` or `@SynoEAStream`, limiting the effective max. file name length to 130 (this is the default in the script).
