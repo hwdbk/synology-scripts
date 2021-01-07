@@ -2,7 +2,7 @@
 
 This directory contains a toolset to retrieve Mac OS X -created extended attributes natively from the Synology ext4 or btrfs file system. For a collection
 of excellent articles on what extended attributes are and how/what for they are used in Mac OS X, read
-https://eclecticlight.co/2020/10/24/theres-more-to-files-than-data-extended-attributes/ and it's related (click-through) articles).
+https://eclecticlight.co/2020/10/24/theres-more-to-files-than-data-extended-attributes/ and it's related click-through Related articles at the bottom.
 Of course, Synology doesn't use unix' native xattr tool to store these. Not by a long shot...
 
 I was triggered on this by new funcionality in the Finder that allowed a user not only to tag a file with Labels (the 'Finder colours' red, orange, yellow, green, blue, purple and gray), but also custom tags. Then I found out that these were stored in the Apple-proprietary `com.apple.metadata:_kMDItemUserTags` extended attribute and that jdberry wrote a cool tool to manage them from the (Mac OS X Terminal) command line:
