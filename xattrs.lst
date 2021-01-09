@@ -1,1 +1,4 @@
 com.apple.metadata:_kMDItemUserTags
+com.apple.diskimages.recentcksum
+com.apple.TextEncoding
+other.namespace.here:OtherCustomMetadata
