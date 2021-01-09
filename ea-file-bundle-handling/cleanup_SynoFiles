@@ -80,12 +80,12 @@ echo "finding more bogus @SynoEAStream files (and their @SynoResource siblings)"
 grep -rlF -f $xat "$@" --include='*@SynoEAStream' | while read f ; do
 	# this filters all files with one or more of the (non-bogus) xattrs, but they could be empty (all having an empty value)
 	found=n
-	# visit all xat attributes and check on their values, if one non-empty attr is found, the file is not bogus
+	# visit all non-bogus($xat) attributes and check on their values, if one non-empty attr is found, the metadata (and as a result, the file as a whole) is not bogus
 	for i in $(cat $xat) ; do
 		val=$(get_attr -x -q "$i" "$f")
-		# on an empty xattr, the value is either empty or an empty bplist in case of com.apple.metadata:_kMDItemUserTags
+		# on an empty xattr, the value could still be either empty or an empty bplist in case of com.apple.metadata:_kMDItemUserTags
 		if [[ -n $val && $val != "62706c6973743030a0080000000000000101000000000000000100000000000000000000000000000009" ]] ; then
-			found=y
+			found=y # found (at least one) non-empty non-bogus xattr
 		fi
 	done
 	# check that none of the xat attributes had meaningful data in the value
