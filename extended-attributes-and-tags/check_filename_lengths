@@ -2,10 +2,14 @@
 # usage: check_filename_lengths [-len] dir|file [dir|file ...]
 #        len=130 by default (the longest filename not to cause problems with @Syno files)
 if [[ $1 == -* ]] ; then len=${1:1} ; shift ; else len=130 ; fi
-find "$@" -type f ! -path "*/@eaDir/*" | while read i ; do
+
+found=
+while read i ; do
 	j=$(basename "$i")
 	if (( ${#j} > len )) ; then
 		echo "${#j} $i"
+		found=y
 	fi
-done | sort -n -k 1
+done < <( find "$@" -type f ! -path "*/@eaDir/*" ) # | sort -n -k 1 # piping this to sort makes the perennial bash while/subshell/pipe question reappear, even when using < <(process substitution) !!
+if [[ -n $found ]] ; then exit 1 ; fi
 #EOF
