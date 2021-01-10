@@ -52,7 +52,7 @@ When used with `-l`, it just lists the extraneous files on stdout, and does not 
 After running this script, there will still be some trailing metadata on the file system. This is logical, because any file that has one of the meaningful
 extended attributes, will also retain any other (non-meaningful) extended attribute. The script deals with the `@Syno` files, i.e. _all_ attributes (or none)
 and therefore can not delete extended attributes that are stored amongst other extended attributes.
-You need to run xattr -d from the Mac OS X Terminal to do this. Here's a one-liner for the not-so-faint-of-heart:
+You need to run xattr -d from the Mac OS X Terminal to do this. Here's a bash one-liner for the not-so-faint-of-heart:
 
 ``xattr -r /Volumes/share/ | grep -v -f xattrs.lst | grep -v com.apple.FinderInfo | while read line ; do file=${line%: com.apple*} ; attr="com.apple.${line#*: com.apple.}" ; echo xattr -d "$attr" "$file" ; done | sort -k 3``
 
