@@ -18,7 +18,7 @@ if [[ $1 == "-f" ]] ; then
 fi
 
 for i in "$@" ; do
-	if [ -e "$i" ] ; then
+	if [[ -e "$i" ]] ; then
 		# use GNU find -printf format (on Mac OS X, you must install gfind from macports or brew)
 		find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sed -e 's/\(^........_......\)\.[0-9]*/\1/' | while IFS=$'\t' read a b f ; do
 			c=
