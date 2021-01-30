@@ -1,8 +1,12 @@
 #!/bin/bash
-# usage: backup_update_generate filelist.fst backup_disksetname_disk1.fst [backup_disksetname_disk2.fst ...]
-# note:  make sure that: filelist.fst uses the same UTF-8 encoding as the backup_disksetname_disk.fst file(s)
-# note:  at the moment, because of the use of md5diff.cpp, this script must be run from MacOS or Linux
-# note:  currently only works with .fst, not .md5 because "while IFS=$'\t' read f1 f2 ..." skips multiple tabs
+
+if (( $# < 2 )) || [[ $1 == "--help" ]] ; then
+	echo "usage: backup_update_generate filelist.fst backup_disksetname_disk1.fst [backup_disksetname_disk2.fst ...]" >&2
+	echo "note:  make sure that filelist.fst uses the same (UTF-8) encoding as the backup_disksetname_disk.fst file(s)" >&2
+	echo "note:  at the moment, because of the use of md5diff.cpp compiled, this script must be run from MacOS or Linux" >&2
+	echo "note:  currently only works with .fst, not .md5 because \"while IFS=$'\t' read f1 f2 ...\" skips multiple tabs" >&2
+	exit 1
+fi
 
 bupdir="/volumeSATA1/satashare1-1" ; if [[ ! -d $bupdir ]] ; then bupdir="/volume1/NetBackup" ; fi # the directory in which the YYYYMMDD_nnn backup directories will be found
 
@@ -16,8 +20,9 @@ ECRYPTFSHEADER=8192
 # use df -B 1 to get the free space of a fresh formatted partition; then subtract some safe margin
 DS2T=$((1962323599360 - 3*GB))
 DS3T=$((2946802712576 - 4*GB))
+DS5T=$((4954812403712 - 5*GB))
 DS8T=$((7931730001920 - 6*GB))
-DS=( $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS8T $DS3T $DS3T $DS8T )
+DS=( $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS8T $DS3T $DS3T $DS5T )
 
 _newdiskname() {
 	local d=$(basename "$1" .fst)
@@ -109,7 +114,7 @@ done
 # final category: list of files to add (new files)
 grep "^+" "$dff" > "$add"
 
-echo "Manage free space on each disk" | tee -a $log
+echo "Manage free space on each disk for the modififed and new (added) files" | tee -a $log
 
 # now manage the free space on each disk to see how many of the modified and new files can be written
 exec 3<"$add" ; addl=
