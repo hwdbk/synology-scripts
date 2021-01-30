@@ -10,6 +10,7 @@ declare -A md5
 if [[ $1 == "-f" ]] ; then
 	if [[ -f $2 ]] ; then
 		prevmd5=$2 ; shift 2
+		echo "reusing md5sums from $prevmd5" >&2
 		while read a b m f ; do md5+=(["$a\t$b\t$f"]=$m) ; done < "$prevmd5"
 		echo "read ${#md5[@]} md5sums from $prevmd5" >&2
 	else
