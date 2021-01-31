@@ -121,12 +121,16 @@ else
 	if [[ $opts == md5 ]] ; then
 		# full md5 scan
 		echo "Verifying $dsk (save output in $wrkdir/$dsk.md5)" | tee -a $log
-		mkfilelist_md5 "$bupdir/$dsk" | sed -e "s#\t$bupdir/$dsk/#\t#" > "$wrkdir/$dsk.md5"
+		dd=$(pwd) ; cd "$bupdir/$dsk"
+		mkfilelist_md5 * > "$wrkdir/$dsk.md5"
+		cd "$dd"
 	elif [[ $opts == md5\ * ]] ; then
 		# incremental md5 scan using previous scan
 		prev=${opts#md5 }
 		echo "Verifying $dsk (using previous scan $prev, save output in $wrkdir/$dsk.md5)" | tee -a $log
-		mkfilelist_md5 -f $prev "$bupdir/$dsk" | sed -e "s#\t$bupdir/$dsk/#\t#" > "$wrkdir/$dsk.md5"
+		dd=$(pwd) ; cd "$bupdir/$dsk"
+		mkfilelist_md5 -f $prev * > "$wrkdir/$dsk.md5"
+		cd "$dd"
 	fi
 #	echo "Unmounting $dsk"
 #	umount "$bupdir/$dsk"
