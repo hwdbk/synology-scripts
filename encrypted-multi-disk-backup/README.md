@@ -40,14 +40,14 @@ Processing differences
 # Added 22861 items in input.fst
 Assigning differences to each disk: deleted, moved, renamed and modified files
 Manage free space on each disk
-src_001:  2,942,437 MB in use,        365 MB free -> 20201208_001:  2,942,437 MB in use,        365 MB free
-src_002:  2,941,529 MB in use,      1,273 MB free -> 20201208_002:  2,941,529 MB in use,      1,273 MB free
-src_003:  2,942,374 MB in use,        428 MB free -> 20201208_003:  2,942,374 MB in use,        428 MB free
-src_004:  2,938,466 MB in use,      4,336 MB free -> 20201208_004:  2,941,774 MB in use,      1,028 MB free
-src_005:  2,935,816 MB in use,      6,986 MB free -> 20201208_005:  2,941,622 MB in use,      1,180 MB free
-src_006:          0 MB in use,  7,925,730 MB free -> 20201208_006:  3,439,284 MB in use,  4,486,445 MB free
-src_007:  2,939,151 MB in use,      3,650 MB free -> 20201208_007:  2,942,474 MB in use,        327 MB free
-src_008:  2,941,196 MB in use,      1,606 MB free -> 20201208_008:  2,941,196 MB in use,      1,606 MB free
+src_001:  2,942,437 MB in use,        365 MB free -> 20201208_001:  2,942,437 MB in use,        365 MB free;        310 MB to be written
+src_002:  2,941,529 MB in use,      1,273 MB free -> 20201208_002:  2,941,529 MB in use,      1,273 MB free;          0 MB to be written
+src_003:  2,942,374 MB in use,        428 MB free -> 20201208_003:  2,942,374 MB in use,        428 MB free;          0 MB to be written
+src_004:  2,938,466 MB in use,      4,336 MB free -> 20201208_004:  2,941,774 MB in use,      1,028 MB free;    311,917 MB to be written
+src_005:  2,935,816 MB in use,      6,986 MB free -> 20201208_005:  2,941,622 MB in use,      1,180 MB free;    121,444 MB to be written
+src_006:          0 MB in use,  7,925,730 MB free -> 20201208_006:  3,439,284 MB in use,  4,486,445 MB free;  3,439,284 MB to be written
+src_007:  2,939,151 MB in use,      3,650 MB free -> 20201208_007:  2,942,474 MB in use,        327 MB free;      3,986 MB to be written
+src_008:  2,941,196 MB in use,      1,606 MB free -> 20201208_008:  2,941,196 MB in use,      1,606 MB free;          0 MB to be written
 LEFTOVER LINES: 
 none
 ```
@@ -62,3 +62,7 @@ After backup, the result can be cross-checked against the source (input.fst in t
 Now there's something to say to both methods: `backup_diskset_generate` will create an ordered disk set and you get to decide which files are written out in which order (on which disks, to a certain extent), but updating basically rewrites the entire sequence and pushes data forward across the disks as you data set increases in size. Files get rewritten on the next disk if they wouldn't no longer fit on the disk they originally were backed up on. `backup_update_generate`, on the other hand, 100% reuses any file ever written (as long as it is still required in the backup set), but as a result, a directory may get spread across several disks (PS> a file is never split, of course). After a couple of passes, the disks layout may look a bit messy, but all files are there, and easy to find (with grep) from the backup set's output `.fst` or `.md5` file lists.
 
 The first method is ideal if you expect to be wanting to restore a specific directory regularly. The latter is ideal to regularly and fastly update the disk set for offline storage and, if push comes to shove, you don't mind popping in a couple of disks to retrieve the contents of a specific directory. You can't have it all...
+
+# Extras
+
+- `mount_ecryptfolder` is a small helper script that can be used to manually mount encrypted folders. It wraps `mount.ecryptfs` with the mount parameters prefilled with defaults, which also happen to be the parameters used by Synology to mount an encrypted share from the DSM user interface and the above `backup_diskset_copy` and `backup_update_copy` scripts.
