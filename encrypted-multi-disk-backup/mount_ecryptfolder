@@ -1,0 +1,13 @@
+#!/bin/bash
+
+mode=ro
+if [[ $1 == "rw" ]] ; then mode=rw ; shift ; fi
+
+if [[ $# == 0 || ! -d "$1" || ! -d "$2" ]] ; then
+	echo "usage: $0 [rw] ecryptfs_dir mount_dir" >&2
+	exit 1
+fi
+
+mount.ecryptfs "$1" "$2" -o $mode,noauto,ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y
+
+#EOF
