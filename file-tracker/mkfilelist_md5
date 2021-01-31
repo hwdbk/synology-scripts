@@ -11,7 +11,7 @@ if [[ $1 == "-f" ]] ; then
 	if [[ -f $2 ]] ; then
 		prevmd5=$2 ; shift 2
 		echo "reusing md5sums from $prevmd5" >&2
-		while read a b m f ; do md5+=(["$a\t$b\t$f"]=$m) ; done < "$prevmd5"
+		while read a b m f ; do md5+=(["$a|$b|$f"]=$m) ; done < "$prevmd5" # create a composite key from moddate, size and full path
 		echo "read ${#md5[@]} md5sums from $prevmd5" >&2
 	else
 		echo "$0: wrong parameter: $1 $2" >&2 ; exit 1
@@ -28,7 +28,7 @@ for i in "$@" ; do
 #				while IFS=$'\t' read f1 f2 f3 f4 ; do
 #					c="$f3-\t$f" # use the result from prevmd5
 #				done < <(grep -P "^$a\t$b\t[0-9a-f-]*\t$g\$" $prevmd5)
-				c=${md5["$a\t$b\t$f"]} ; if [[ -n $c ]] ; then c="$c-\t$f" ; fi
+				c=${md5["$a|$b|$f"]} ; if [[ -n $c ]] ; then c="$c-\t$f" ; fi
 			fi
 			if [[ -z $c ]] ; then # no previous value for md5sum used - we need to calculate
 				if [[ -n $prevmd5 ]] ; then echo "$0: info: calculating md5sum for $f" >&2 ; fi
