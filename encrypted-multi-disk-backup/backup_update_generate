@@ -121,7 +121,8 @@ exec 3<"$add" ; addl=
 for f in "${fin[@]}" ; do
 	d=$(_newdiskname "$f").lst # $d is the todo list for this disk
 	n=$(basename "$d" .lst) ; n=$(sed -e 's/^.*_0*//' <<< $n) # the disk number
-	sz=0
+	sz=0 # size on disk tracker
+	sw=0 # size to be written tracker
 	# count the files that are currently listed as being on the disk
 	while IFS=$'\t' read f1 f2 f3 ; do
 		sz=$((sz+$(_sizeondisk $f2)))
@@ -139,7 +140,9 @@ for f in "${fin[@]}" ; do
 	while (( $sz < ${DS[$n-1]} )) && read -u 4 line ; do
 		IFS=$'\t' read f1 f2 f3 f4 f5 f6 f7 <<< "$line"
 		if [[ $f1 == '*' ]] ; then
-			sz=$((sz+$(_sizeondisk $f6)))
+			s=$(_sizeondisk $f6)
+			sz=$((sz+s))
+			sw=$((sw+s))
 		fi
 		echo "$line" >> "$d.tmp" # copy these lines from $d to $d.tmp
 	done
@@ -149,7 +152,7 @@ for f in "${fin[@]}" ; do
 	while read -u 4 line ; do
 		IFS=$'\t' read f1 f2 f3 f4 f5 f6 f7 <<< "$line"
 		if [[ $f1 == '*' ]] ; then
-			echo -e "-\t$f5\t$f6\t\t$f7" >> "$d" # remove this file from $d
+			echo -e "-\t$f5\t$f6\t\t$f7" >> "$d" # remove this file from disk $d
 			echo -e "+\t$f5\t$f6\t\t$f7" >> "$add" # add this file to $add (i.e. to be placed on another disk's free space)
 		else
 			echo "$line" >> "$d.tmp" # copy the other lines from $d to $d.tmp (we use $line because these may be in various formats)
@@ -160,18 +163,21 @@ for f in "${fin[@]}" ; do
 	# now add new files to this disk until it is full
 	while [[ -n $addl ]] || read -u 3 addl ; do
 		IFS=$'\t' read a1 a2 a3 a4 <<< "$addl"
-		newsize=$((sz+$(_sizeondisk $a3)))
+		s=$(_sizeondisk $a3)
+		newsize=$((sz+s))
 		if (( $newsize < ${DS[$n-1]} )) ; then
 			sz=$newsize
+			sw=$((sw+s))
 			echo -e "$a1\t$a2\t$a3\t\t$a4" >> "$d"
 			addl=
+			# by clearing addl the loop is forced to read a new line; if not, it will reuse the line without the need to reread it
 		else
 			break
 			# note that this loop breaks BEFORE the disk size has been exceeded.
 			# the last read line is still held in $addl and will flow to the next disk
 		fi
 	done
-	echo " -> $(basename "$d" .lst): $(_prettyprint $sz) in use, $(_prettyprint $((${DS[$n-1]}-sz))) free" | tee -a $log
+	echo " -> $(basename "$d" .lst): $(_prettyprint $sz) in use, $(_prettyprint $((${DS[$n-1]}-sz))) free; $(_prettyprint $sw) to be written" | tee -a $log
 done
 echo -n "LEFTOVER LINES: " | tee -a $log ; echo >> $log
 # todo: write these 'add' lines to new disks.lst files. for the time being, just add an extra empty backupset_nnn.fst input file
