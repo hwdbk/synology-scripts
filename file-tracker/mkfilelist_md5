@@ -18,6 +18,10 @@ if [[ $1 == "-f" ]] ; then
 	fi
 fi
 
+if (( $# == 0 )) ; then
+	echo "$0: nothing to scan" >&1 ; exit 1
+fi
+
 for i in "$@" ; do
 	if [[ -e "$i" ]] ; then
 		# use GNU find -printf format (on Mac OS X, you must install gfind from macports or brew)
