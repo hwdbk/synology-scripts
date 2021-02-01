@@ -55,4 +55,8 @@ The output is checked/filtered easily by using grep, e.g. `md5diff oldfs.md5 new
 
 # Extras
 
-- `countsize_filelist` is a small script that sums up the file size from the output of `mkfilelist_fast`, `mkfilelist_md5` or `md5diff`. For instance, if you'd want to know how much data was deleted between two subsequent disk scans (using `mkfilelist_fast` or `mkfilelist_md5` to capture the file system's state), type `md5diff before.[fst|md5] after.[fst|md5] | grep ^- | countsize_filelist`
+- `countsize_filelist` is a small script that sums up the file size from the output of `mkfilelist_fast`, `mkfilelist_md5` or `md5diff`. For instance, if you'd want to know how much data was deleted between two subsequent disk scans (using `mkfilelist_fast` or `mkfilelist_md5` to capture the file system's state), type:
+
+  `md5diff before.[fst|md5] after.[fst|md5] | grep ^- | countsize_filelist`
+
+`countsize_filelist` reads from (a bunch of) file(s) passed as arguments, or from stdin.
