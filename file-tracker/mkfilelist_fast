@@ -1,5 +1,15 @@
 #!/bin/bash
 
+if (( $# == 0 )) ; then
+	echo "$0: nothing to scan" >&1 ; exit 1
+fi
+
+# stats
+#nscan=0 # number of files scanned tracker
+#sscan=0 # file size scanned tracker
+# sorry: no stats tracker here because using "while read f ; do ... done < <(find ...)" is so much slower than the gfind -printf oneliner
+# use wc -l and countsize_filelist on the output to get stats
+
 for i in "$@" ; do
 
 if [ -e "$i" ] ; then
