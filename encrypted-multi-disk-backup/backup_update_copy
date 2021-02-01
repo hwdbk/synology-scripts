@@ -15,7 +15,8 @@ if [[ $1 == *.lst && -f $1 ]] ; then
 	name=$(basename "$1" | sed -e 's/_[0-9][0-9][0-9].lst$//')
 	dn=$(basename "$1" | sed -e 's/.*_\([0-9][0-9][0-9]\).lst$/\1/' -e 's/[0]*//')
 	shift
-	opts=$@
+	opts=("$@")
+	if [[ ${opts[0]} == "dryrun" ]] ; then dryrun=y
 else
 	echo "usage: $0 [pwdfile] [path/]backupsetname_disknum[.lst] [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
 	echo "note:  when mountonly or dryrun is specified, no log file is created and md5 verification is skipped" >&2
@@ -25,7 +26,7 @@ else
 fi
 
 dsk=$(printf "%s_%03d" "$name" "$dn")
-#echo "$bupdir # $wrkdir # $name # $dn # $dsk # $opts" ; exit
+#echo "$bupdir#$wrkdir#$name#$dn#$dsk#${opts[@]}#" ; exit
 
 if [[ -d "$bupdir/$dsk" ]] ; then
 	echo "INFO: $bupdir/$dsk exists - assuming it is the mounted backup disk $dsk"
@@ -41,20 +42,20 @@ else
 		# if the target dir is already mounted, this script can also be run from the task manager (doesn't require user input in that case)
 	fi
 fi
-if [[ $opts = "mountonly" ]] ; then exit ; fi
+if [[ ${opts[0]} = "mountonly" ]] ; then exit ; fi
 
 bdl="$wrkdir/$dsk.lst"
 if [[ ! -f "$bdl" ]] ; then echo "Backup todo list $bdl not found - exit" ; exit 1 ; fi
 log="$wrkdir/$dsk.log"
-if [[ $opts = "dryrun" ]] ; then log=/dev/null ; fi # don't overwrite log file in dryrun (could be enabled if necessary)
+if [[ -n $dryrun ]] ; then log=/dev/null ; fi # don't overwrite log file in dryrun (could be enabled if necessary)
 
 echo "Creating backup disk $dn from disk set \"$name\" ($bdl) in $bupdir" | tee $log
-if [[ $opts = "dryrun" ]] ; then echo ">>DRY RUN<<" | tee -a $log ; fi
+if [[ -n $dryrun ]] ; then echo ">>DRY RUN<<" | tee -a $log ; fi
 
 echo "Deleting files on $dsk" | tee -a $log
 # cleanup of files that are no longer in the copy set
 grep '^-' "$bdl" | cut -f 5 | while read f ; do
-	if [[ $opts = "dryrun" ]] ; then
+	if [[ -n $dryrun ]] ; then
 		echo "Will remove: $bupdir/$dsk/$f" | tee -a $log
 	else
 		if [[ ! -f "$bupdir/$dsk/$f" ]] ; then
@@ -70,7 +71,7 @@ grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f1 f3 f4 f5 f6 ; do #
 	if [[ ! -f "$bupdir/$dsk/$f4" ]] ; then echo "WARNING: can't move: $f4 not found on $dsk" | tee -a $log ; fi # just checking...
 	if [[   -f "$bupdir/$dsk/$f6" ]] ; then echo "WARNING: can't move: $f6 already exists on $dsk - skipping" | tee -a $log ; continue ; fi # just checking...
 	mkdir -p "$(dirname "$bupdir/$dsk/$f6")"
-	if [[ $opts = "dryrun" ]] ; then
+	if [[ -n $dryrun ]] ; then
 		echo "Will move: $bupdir/$dsk/$f4 to $bupdir/$dsk/$f6" | tee -a $log
 	else
 		mv "$bupdir/$dsk/$f4" "$bupdir/$dsk/$f6" ; # no output to log or stdout, only stderr
@@ -78,7 +79,7 @@ grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f1 f3 f4 f5 f6 ; do #
 done
 
 # cleanup any trailing empty directories
-if [[ $opts = "dryrun" ]] ; then
+if [[ -n $dryrun ]] ; then
 	echo "Skipping empty directory cleanup (in dry run, the relevant directories are not yet emptied)" | tee -a $log
 else
 	echo "Cleanup of empty directories on $dsk" | tee -a $log
@@ -97,7 +98,7 @@ if [[ -z $pwdfile ]] ; then
 	# interactive mode
 	tmp=$(mktemp) ; echo -n "Password: " ; read -s pwd ; echo "$pwd" > $tmp ; chmod 000 $tmp ; pwdfile=$tmp
 fi
-if [[ $opts = "dryrun" ]] ; then
+if [[ -n $dryrun ]] ; then
 	#rsync -avn --files-from="$flist" --relative --dirs / "$bupdir/$dsk" | tee -a $log
 	rsync -avn --files-from="$flist" --relative --dirs --copy-dirlinks --password-file="$pwdfile" rsync://admin@192.168.2.101/NetBackup "$bupdir/$dsk" | tee -a $log
 else
@@ -112,26 +113,31 @@ rm $flist
 # the catenation of these files can be crosschecked with the master md5 files using md5diff
 # strip the $bupdir base path from the files listed so they start with $dsk/...
 df -B 1 "$bupdir/$dsk" | tee -a $log # log the final utilisation of the disk
-if [[ $opts = "dryrun" ]] ; then
+if [[ -n $dryrun ]] ; then
 	echo "Skipping verification of $bupdir/$dsk to $wrkdir/$dsk.[fst|md5] (dry run)" | tee -a $log
 	# and don't unmount
 else
 	echo "Fast scan of $dsk (save output in $wrkdir/$dsk.fst)" | tee -a $log
 	mkfilelist_fast "$bupdir/$dsk" | sed -e "s#\t$bupdir/$dsk/#\t#" > "$wrkdir/$dsk.fst"
-	if [[ $opts == md5 ]] ; then
-		# full md5 scan
-		echo "Verifying $dsk (save output in $wrkdir/$dsk.md5)" | tee -a $log
-		dd=$(pwd) ; cd "$bupdir/$dsk"
-		mkfilelist_md5 * > "$wrkdir/$dsk.md5"
-		cd "$dd"
-	elif [[ $opts == md5\ * ]] ; then
-		# incremental md5 scan using previous scan
-		prev=${opts#md5 }
-		echo "Verifying $dsk (using previous scan $prev, save output in $wrkdir/$dsk.md5)" | tee -a $log
-		dd=$(pwd) ; cd "$bupdir/$dsk"
-		mkfilelist_md5 -f $prev * > "$wrkdir/$dsk.md5"
-		cd "$dd"
-	fi
+	if [[ ${opts[0]} == md5 ]] ; then
+		if [[ -z ${opts[1]} ]] ; then
+			# full md5 scan
+			echo "Verifying $dsk (save output in $wrkdir/$dsk.md5)" | tee -a $log
+			pushd . ; cd "$bupdir/$dsk"
+			mkfilelist_md5 * > "$wrkdir/$dsk.md5"
+			popd
+		elif [[ -f ${opts[1]} ]] ; then
+			# incremental md5 scan using previous scan
+			prev=${opts[1]}
+			# prepend current path if $prev path is not absolute, to make it absolute and work when whe're cd-ing into $bupdir/$dsk
+			if [[ ${prev:0:1} != '/' ]] ; then prev="$(pwd)/$prev" ; fi
+			echo "Verifying $dsk (using previous scan $prev, save output in $wrkdir/$dsk.md5)" | tee -a $log
+			pushd . ; cd "$bupdir/$dsk"
+			mkfilelist_md5 -f $prev * > "$wrkdir/$dsk.md5"
+			popd
+		else
+			echo "Error: wrong parameter ${opts[1]} - skipping md5sum verification" | tee -a $log
+		fi
 #	echo "Unmounting $dsk"
 #	umount "$bupdir/$dsk"
 #	rmdir "$bupdir/$dsk"
