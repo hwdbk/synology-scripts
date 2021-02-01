@@ -16,7 +16,7 @@ if [[ $1 == *.lst && -f $1 ]] ; then
 	dn=$(basename "$1" | sed -e 's/.*_\([0-9][0-9][0-9]\).lst$/\1/' -e 's/[0]*//')
 	shift
 	opts=("$@")
-	if [[ ${opts[0]} == "dryrun" ]] ; then dryrun=y
+	if [[ ${opts[0]} == "dryrun" ]] ; then dryrun=y ; fi
 else
 	echo "usage: $0 [pwdfile] [path/]backupsetname_disknum[.lst] [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
 	echo "note:  when mountonly or dryrun is specified, no log file is created and md5 verification is skipped" >&2
