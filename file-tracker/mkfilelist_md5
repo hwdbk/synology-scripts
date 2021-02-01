@@ -22,10 +22,17 @@ if (( $# == 0 )) ; then
 	echo "$0: nothing to scan" >&1 ; exit 1
 fi
 
+# stats
+nscan=0 # number of files scanned tracker
+sscan=0 # file size scanned tracker
+nprev=0 # number of files found in previous scan tracker
+sprev=0 # file size of files found in previous scan tracker
+
 for i in "$@" ; do
 	if [[ -e "$i" ]] ; then
 		# use GNU find -printf format (on Mac OS X, you must install gfind from macports or brew)
-		find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sed -e 's/\(^........_......\)\.[0-9]*/\1/' | while IFS=$'\t' read a b f ; do
+		while IFS=$'\t' read a b f ; do
+			((nscan++)) ; ((sscan+=b)) # update stats for totals
 			c=
 			if [[ -n $prevmd5 ]] ; then
 #				g=$f ; for i in '^' '.' '+' '|' '(' ')' '[' ']' '$' ; do g=${g//$i/\\$i} ; done ; g=${g//\?/\\?} ; g=${g//\*/\\*} # escaped version of f to be used in grep -P (note: grep -P requires other chrs to be escaped than plain grep)
@@ -33,15 +40,17 @@ for i in "$@" ; do
 #					c="$f3-\t$f" # use the result from prevmd5
 #				done < <(grep -P "^$a\t$b\t[0-9a-f-]*\t$g\$" $prevmd5)
 				c=${md5["$a|$b|$f"]} ; if [[ -n $c ]] ; then c="$c-\t$f" ; fi
+				((nprev++)) ; ((sprev+=b)) # update stats for reused md5sums
 			fi
 			if [[ -z $c ]] ; then # no previous value for md5sum used - we need to calculate
 				if [[ -n $prevmd5 ]] ; then echo "$0: info: calculating md5sum for $f" >&2 ; fi
 				c=$(md5sum "$f" | sed -e "s/  /\t/")
 			fi
 			echo -e "$a\t$b\t$c"
-		done
+		done < <(find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sed -e 's/\(^........_......\)\.[0-9]*/\1/')
 	else
-		echo "usage: mkfilelist_md5 [-f previous_scan.md5] directory" >&2
+		echo "$0: $i: wrong paramter" >&2
+		echo "usage: $0 [-f previous_scan.md5] directory|file [...]" >&2
 		echo "print on stdout a list with" >&2
 		echo "modification date<tab>file length<tab>md5sum<tab>file path" >&2
 		echo "if a previous_scan.md5 file is passed as parameter, it will insert the results of" >&2
@@ -49,4 +58,10 @@ for i in "$@" ; do
 	fi
 done
 
+# print stats
+if [[ -n $prevmd5 ]] ; then
+echo "$nscan files scanned ($sscan bytes on disk)" >&2
+echo "$nprev md5sums reused from $prevmd5: $sprev bytes skipped" >&2
+fi
+echo "$((nscan-nprev)) files read ($((sscan-sprev)) bytes read)" >&2
 #EOF
