@@ -25,8 +25,8 @@ DS8T=$((7931730001920 - 6*GB))
 DS=( $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS3T $DS8T $DS3T $DS3T $DS5T )
 
 _newdiskname() {
-	local d=$(basename "$1" .fst)
-	local n=${TODAY}_${d/*_}
+	local d=$(basename "$1") ; d=${d%.*} # basename of $1 without extension
+	local n=${TODAY}_${d#*_} # use today (YYYYMMDD) and reuse the disk number _NNN from $d
 	echo "$n"
 }
 
@@ -72,7 +72,7 @@ for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -k 1 > $tmp
 fin=() ; while IFS=$'\t' read a b ; do fin+=("$b") ; done < $tmp
 #echo "${fin[@]}"
 echo "Source disks to use (sorted by disknum):" | tee -a $log
-for i in "${fin[@]}" ; do n=$(sed -e 's/^.*_0*//' <<< "$(_newdiskname "$i")") ; echo "$i (disk size $(_prettyprint ${DS[$n-1]}))" | tee -a $log ; done
+for i in "${fin[@]}" ; do d=$(basename "$i") ; d=${d%.*} ; n=${d#*_} ; n=$((10#$n)) ; echo "$i (disk size $(_prettyprint ${DS[$n-1]}))" | tee -a $log ; done
 echo "Processing differences" | tee -a $log
 cat "${fin[@]}" > "$src" # create full file list of existing backup. note the paths don't contain the disk name and can therefore be compared to the paths in $tgt
 md5diff "$src" "$tgt" > "$dff" # create the differences file. $src and $tgt should start with the same base paths, so modified files are tracked correctly
@@ -120,7 +120,7 @@ echo "Manage free space on each disk for the modififed and new (added) files" | 
 exec 3<"$add" ; addl=
 for f in "${fin[@]}" ; do
 	d=$(_newdiskname "$f").lst # $d is the todo list for this disk
-	n=$(basename "$d" .lst) ; n=$(sed -e 's/^.*_0*//' <<< $n) # the disk number
+	n=$(basename "$d" .lst) ; n=${n#*_} ; n=$((10#$n)) # the disk number; note the $ because the string $n (e.g. 017) needs to be converted to a number (17 in this example)
 	sz=0 # size on disk tracker
 	sw=0 # size to be written tracker
 	# count the files that are currently listed as being on the disk
