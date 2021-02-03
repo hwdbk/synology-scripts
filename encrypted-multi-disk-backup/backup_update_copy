@@ -10,8 +10,8 @@ if [[ $1 != *.lst && -f $1 ]] ; then pwdfile=$1 ; shift ; chmod 000 "$pwdfile" ;
 if [[ ! -d "$bupdir" ]] ; then echo "Backup target directory $bupdir not found - exit" ; exit 1 ; fi
 
 if [[ $1 == *.lst && -f $1 ]] ; then
-	# assume backup_diskset_copy [path/]backupsetname_disknum.lst [ mountonly | dryrun ]
-	wrkdir=$(dirname "$1")
+	# assume backup_diskset_copy [path/]backupsetname_disknum.lst [ options ]
+	wrkdir=$(dirname "$1") ; if [[ $wrkdir == "." ]] ; then wrkdir=$(pwd) ; fi
 	name=$(basename "$1" | sed -e 's/_[0-9][0-9][0-9].lst$//')
 	dn=$(basename "$1" | sed -e 's/.*_\([0-9][0-9][0-9]\).lst$/\1/' -e 's/[0]*//')
 	shift
