@@ -19,7 +19,7 @@ if [[ $1 == "-f" ]] ; then
 fi
 
 if (( $# == 0 )) ; then
-	echo "$0: nothing to scan" >&1 ; exit 1
+	echo "$0: nothing to scan" >&2 ; exit 1
 fi
 
 # stats
