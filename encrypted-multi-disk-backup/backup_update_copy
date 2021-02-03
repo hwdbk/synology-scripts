@@ -11,7 +11,7 @@ if [[ ! -d "$bupdir" ]] ; then echo "Backup target directory $bupdir not found -
 
 if [[ $1 == *.lst && -f $1 ]] ; then
 	# assume backup_diskset_copy [path/]backupsetname_disknum.lst [ options ]
-	wrkdir=$(dirname "$1") ; if [[ $wrkdir == "." ]] ; then wrkdir=$(pwd) ; fi
+	wrkdir=$(dirname "$1") ; if [[ ${wrkdir:0:1} != '/' ]] ; then wrkdir="$(pwd)/$wrkdir" ; fi
 	name=$(basename "$1" | sed -e 's/_[0-9][0-9][0-9].lst$//')
 	dn=$(basename "$1" | sed -e 's/.*_\([0-9][0-9][0-9]\).lst$/\1/' -e 's/[0]*//')
 	shift
@@ -123,18 +123,18 @@ else
 		if [[ -z ${opts[1]} ]] ; then
 			# full md5 scan
 			echo "Verifying $dsk (save output in $wrkdir/$dsk.md5)" | tee -a $log
-			pushd . ; cd "$bupdir/$dsk"
+			savepwd=$(pwd) ; cd "$bupdir/$dsk"
 			mkfilelist_md5 * > "$wrkdir/$dsk.md5"
-			popd
+			cd "$savepwd"
 		elif [[ -f ${opts[1]} ]] ; then
 			# incremental md5 scan using previous scan
 			prev=${opts[1]}
 			# prepend current path if $prev path is not absolute, to make it absolute and work when whe're cd-ing into $bupdir/$dsk
 			if [[ ${prev:0:1} != '/' ]] ; then prev="$(pwd)/$prev" ; fi
 			echo "Verifying $dsk (using previous scan $prev, save output in $wrkdir/$dsk.md5)" | tee -a $log
-			pushd . ; cd "$bupdir/$dsk"
+			savepwd=$(pwd) ; cd "$bupdir/$dsk"
 			mkfilelist_md5 -f $prev * > "$wrkdir/$dsk.md5"
-			popd
+			cd "$savepwd"
 		else
 			echo "Error: wrong parameter ${opts[1]} - skipping md5sum verification" | tee -a $log
 		fi
