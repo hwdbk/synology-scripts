@@ -41,9 +41,9 @@ The algorithm is self-managing: if you change tags (add, remove, rename), the li
 ## Hard links
 
 The scripts use hard links for files throughout. It would use hard links for directories, if that were possible. It isn't, hence the symlinks. Hard links are great because they remain in tact if any of the linked files are renamed or moved around (as opposed to symlinks, which immediatly stop working in those
-cases). The scripts use the ln_with_ea scripts to keep consistent links between the actual file and its extended attributes. This effectively creates the
+cases). The scripts use the `ln_with_ea` scripts to keep consistent links between the actual file and its extended attributes. This effectively creates the
 `@SynoEAStream` file as a hard link sidecar file, which in turn allows you to tag the 'originals' or the 'linked copies'. Again, in the above example, if
-you tag the movie inside `/volume/share/movies/genres-/Science Fiction/Robot` with "Art movie", running the script will create another hard link to
+you tag the movie inside `/volume/share/movies/genres-/Science Fiction/Robot` with "Art movie", running the script a second time will create another hard link to
 the movie (and its `@Syno` files) inside `/volume/share/movies/genres-/Art movie`. So, you don't have to locate the original Robot movie to do so.
 
 ## Other uses
