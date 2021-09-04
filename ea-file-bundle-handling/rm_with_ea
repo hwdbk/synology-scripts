@@ -1,9 +1,15 @@
 #!/bin/bash
 # a special version of rm that also removes the @SynoEAStream and @SynoResource in the ../@eaDir directory
 # $1 must be a regular file
+# will not delete a file with a link count of 1, unless -f (force) is specified
+if [[ $1 == -f ]] ; then force=y ; shift ; fi
 if [[ -f "$1" ]] ; then
-	rm -v "$1"
-	rm -f "$(dirname "$1")/@eaDir/$(basename "$1")@SynoEAStream"
-	rm -f "$(dirname "$1")/@eaDir/$(basename "$1")@SynoResource"
+	if [[ -z $force ]] && (( $(stat -c "%h" "$1") == 1 )) ; then
+		echo "not deleting $1 (link count is 1)" >&2
+	else
+		rm -v "$1"
+		rm -f "$(dirname "$1")/@eaDir/$(basename "$1")@SynoEAStream"
+		rm -f "$(dirname "$1")/@eaDir/$(basename "$1")@SynoResource"
+	fi
 fi
 #EOF
