@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if (( $# == 0 )) ; then
-	echo "$0: nothing to scan" >&1 ; exit 1
+	echo "$0: nothing to scan" >&2 ; exit 1
 fi
 
 # stats
@@ -13,21 +13,15 @@ fi
 for i in "$@" ; do
 
 if [ -e "$i" ] ; then
-	if true ; then
-		# use GNU find -printf format
-		find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t\t%p\n" | sed -e 's/\(^........_......\)\.[0-9]*/\1/'
-	else
-		# use date and ls to get the moddate and size. stat could also be used, but stat tends to have different format specifiers on different systems
-		find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*-/*" \) -print | while read f ; do
-			a=$(date -r "$f" +%Y%m%d_%H%M%S)
-			b=$(ls -l "$f" | sed -e 's/ /\t/g' | cut -f 5)
-			echo -e "$a\t$b\t\t$f"
-		done
-	fi
+	# use GNU find -printf format
+	# one could use date and ls to get the moddate and size, but getting nanosecond resolution is a problem
+	# stat could also be used and does show nanosecond resolution, but stat tends to have different format specifiers on different systems
+	find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t-\t%p\n"  | sed -e 's/\(^........_......\..........\)./\1/'
 else
 	echo "usage: mkfilelist_fast file|directory [file|directory ...]" >&2
 	echo "print on stdout a list with" >&2
-	echo "modification date<tab>file length<tab><tab>file path" >&2
+	echo "modification date<tab>file length<tab>-<tab>file path" >&2
+	echo "(it prints a '-' where mkfilelist_md5 would print the md5sum to keep the file format compatible)" >&2
 fi
 
 done
