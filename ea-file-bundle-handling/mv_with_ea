@@ -1,14 +1,33 @@
 #!/bin/bash
 # a special version of mv that also moves the @SynoEAStream and @SynoResource in the ../@eaDir directory
-# use case 1: $1 must be a regular file or directory ; $2 must be a target directory (i.e. does not rename the file(s))
-# use cases todo: - $1 is a regular file or directory ; $2 is a target file name (i.e. _does_ rename the file(s))
-#                 - multiple parameters (source files) and the last parameter is the target directory
-#                 - possibly overwriting existing files and handling that
-# there is no such thing as a 'simple' mv
-if [[ -e "$1" && -d "$2" ]] ; then
-	mv -v "$1" "$2"
-	f="$(dirname "$1")/@eaDir/$(basename "$1")"
-	if [[ -f "$f@SynoEAStream" ]] ; then mv "$f@SynoEAStream" "$(dirname "$2")/@eaDir/" ; fi
-	if [[ -f "$f@SynoResource" ]] ; then mv "$f@SynoResource" "$(dirname "$2")/@eaDir/" ; fi
+# use case 1: $i must be a regular file or directory ; $t is a target directory (i.e. does not rename the file/dir(s), just moves them to $t/)
+# use case 2: $i is a regular file or directory ; $t is a target file or directory name, which may or may not exist (i.e. it _does_ rename the file/dir)
+
+if (( $# < 2 )) ; then
+	echo "usage: $0 file|dir [...] target" >&2
+	exit 1
 fi
+
+tgt=${@:$#} ; set -- "${@:1:$#-1}" # get target and strip last parameter
+if (( $# > 1 )) && [[ ! -d $tgt ]] ; then
+	echo "target $tgt is not a directory" >&2
+	exit 1
+fi
+# at this point, we have mv file1 file2, or mv dir1 dir2, or mv file ... dir
+
+for i in "$@" ; do
+	# $i and $tgt can be (file,file), (file,dir), (dir,dir) (or (dir,file), but that is not allowed)
+	# $tgt may or may not exist, except when it is a dir to move file/dir (in)to, then it should exist
+	if [[ -d $tgt ]] ; then t="$tgt/$(basename "$i")" ; else t=$tgt ; fi # create uniformity: now, $i and $t is (file,file) or (dir,dir)
+#	echo "mv $i $t" ; echo "mv $(dirname "$i")/@eaDir/$(basename "$i")@Syno $(dirname "$t")/@eaDir/$(basename "$t")@Syno" ; continue
+	if mv -v "$i" "$t" ; then # if the move of the file or dir itself is successfull, then move the @Syno files as well, if any
+		f="$(dirname "$i")/@eaDir/$(basename "$i")"
+		if [[ -f "$f@SynoEAStream" || -f "$f@SynoResource" ]] ; then
+			g="$(dirname "$t")/@eaDir/$(basename "$t")"
+			mkdir -p "$(dirname "$g")" # create the @eaDir directory, if it doesn't yet exist
+			if [[ -f "$f@SynoEAStream" ]] ; then mv -v "$f@SynoEAStream" "$g@SynoEAStream" ; fi
+			if [[ -f "$f@SynoResource" ]] ; then mv -v "$f@SynoResource" "$g@SynoResource" ; fi
+		fi
+	fi
+done
 #EOF
