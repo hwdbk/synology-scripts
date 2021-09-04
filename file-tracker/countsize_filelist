@@ -2,16 +2,30 @@
 # count (sum up, add) the file sizes in the .md5/.fst files, or an md5diff output (or backupset .lst file)
 # reads from stdin or a bunch of files
 
+pretty=
+if [[ $1 == -h ]] ; then
+	pretty=y ; shift
+fi
 n=0
-while IFS=$'\a' read a b c d ; do
-	if [[ $a = '#' ]] ; then continue
-	echo "#$a#"
-	elif [[ $a =~ [-+=\>] ]] ; then
-		n=$((n+c))
+while IFS=$'\t' read a b c d ; do
+	if [[ -z $a || $a = '#' ]] ; then continue ; fi # skip empty lines and comment lines
+	if [[ $a =~ [-+=\>*] ]] ; then
+		((n+=c)) # a line from an md5diff output - size is in $c
 	else
-		n=$((n+b))
+		((n+=b)) # a line from mkfilelist_md5 or mkfilelist_fast - size is in $b
 	fi
-done < <(if [[ $# == 0 ]] ; then cat <&0 ; else cat "$@" ; fi | tr '\t' '\a')
+done < <(if [[ $# == 0 ]] ; then cat <&0 ; else cat "$@" ; fi)
+
+if [[ -n $pretty ]] ; then
+	r=
+	for (( m=${#n}/3+1 ; m>0 ; m-- )) ; do
+		p=$((${#n}-3*m)) ; q=3
+		if (( p<0 )) ; then q=$((p+3)) ; p=0 ; fi
+		if (( q>0 )) ; then r="$r,${n:$p:$q}" ; fi
+	done
+	n=${r#,} # strip leading comma
+fi
+
 echo $n
 
 #EOF
