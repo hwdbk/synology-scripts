@@ -9,7 +9,9 @@ md5sum, which is more robust but can take a lot of time).
 modification date_time, file size, path and filename. Although not 100% bullet-proof (there may be 2 files with the same size,
 same modification date and yet have different contents), in practical situations it is more than enough to do a quick scan).
 
-Example output: `20010330_150816\t3069\t\t./Standards/tv-anytime/SP004v11_schema.xsd`
+Example output: `20010330_150816\t3069\t-\t./Standards/tv-anytime/SP004v11_schema.xsd`
+Note: as of 2021-09-04, the double tab is replaced with tab-dash-tab to ease parsing the file in bash. `md5diff` supports
+both formats. To convert old form to new form, do: `while IFS=$'\t' read a b c ; do echo -e "$a\t$b\t-\t$c" ; done < oldfile.fst`
 
 - `mkfilelist_md5` prints on stdout a list of true file 'fingerprints' consisting of
 modification date_time, file size, md5sum, path and filename. Using the md5sum achieves two things: first, it reads all file data
