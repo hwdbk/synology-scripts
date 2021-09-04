@@ -30,7 +30,7 @@ DS2T=$((1962323599360 - 3*GB))
 DS3T=$((2946802712576 - 4*GB))
 DS5T=$((4954812403712 - 5*GB))
 DS8T=$((7931730001920 - 6*GB))
-DS=( $DS3T $DS3T $DS3T $((DS3T - 100*GiB)) ) # 4 disks of 3T + reserve some extra free space on the last 
+DS=( $DS3T $DS3T $DS3T $((DS3T - 100*GiB)) ) # 4 disks of 3T + reserve some extra free space on the last
 
 _newdiskname() {
 	local d=$(basename "$1") ; d=${d%%.*} # basename of $1 without extension(s)
