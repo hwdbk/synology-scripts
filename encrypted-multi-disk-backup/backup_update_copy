@@ -18,7 +18,10 @@ if [[ $1 == *.lst && -f $1 ]] ; then
 	opts=("$@")
 	if [[ ${opts[0]} == "dryrun" ]] ; then dryrun=y ; fi
 else
-	echo "usage: $0 [pwdfile] [path/]backupsetname_disknum[.lst] [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
+	echo "usage: $0 [pwdfile] backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
+	echo "this script will process the .lst 'todo' recipe for a given backup set disk. it will 'pull' the files" >&2
+	echo "and write them on a local mounted file system (this is because files also can be deleted/moved/renamed)" >&2
+	echo "which is tricky to do through rsync alone." >&2
 	echo "note:  when mountonly or dryrun is specified, no log file is created and md5 verification is skipped" >&2
 	echo "note:  the pwdfile is used if the files are fetched with rsync over the network; for local (filesystem)" >&2
 	echo "       rsync, this is not necessary. the copy method is hardcoded in the copy section; two examples are given" >&2
@@ -31,7 +34,8 @@ dsk=$(printf "%s_%03d" "$name" "$dn")
 if [[ -d "$bupdir/$dsk" ]] ; then
 	echo "INFO: $bupdir/$dsk exists - assuming it is the mounted backup disk $dsk"
 else
-	echo "Mounting @$dsk@"
+	echo "INFO: $bupdir/$dsk not found"
+	echo "Mounting $bupdir/@$dsk@ on $bupdir/$dsk"
 	mkdir -pv "$bupdir/@$dsk@"
 	mkdir -p  "$bupdir/$dsk"
 	if (( $(df -P | grep "$bupdir/$dsk" | wc -l) == 0 )) ; then
@@ -51,6 +55,15 @@ if [[ -n $dryrun ]] ; then log=/dev/null ; fi # don't overwrite log file in dryr
 
 echo "Creating backup disk $dn from disk set \"$name\" ($bdl) in $bupdir" | tee $log
 if [[ -n $dryrun ]] ; then echo ">>DRY RUN<<" | tee -a $log ; fi
+dlist=$(mktemp) # collect a list of touched directories to speed up cleanup
+
+# .lst 'todo' recipe format (output from md5diff):
+#   f1   f2      f3      f4           f5        f6        f7        f8
+#   -  moddate  size  [md5sum|-]     path
+#   =  moddate  size  [md5sum|-]     path       ->      newpath
+#   >  moddate  size  [md5sum|-]     path       ->      newpath
+#   *  moddate  size     ->       newmoddate  newsize  [md5sum|-]  path
+#   +  moddate  size  [md5sum|-]     path
 
 echo "Deleting files on $dsk" | tee -a $log
 # cleanup of files that are no longer in the copy set
@@ -64,49 +77,55 @@ grep '^-' "$bdl" | cut -f 5 | while read f ; do
 			rm "$bupdir/$dsk/$f" ; # no output to log or stdout, only stderr if rm fails
 		fi
 	fi
+	echo "$(dirname "$bupdir/$dsk/$f")" >> $dlist # directory could now be empty
 done
 
 echo "Moving and renaming files on $dsk" | tee -a $log
-grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f1 f3 f4 f5 f6 ; do #
-	if [[ ! -f "$bupdir/$dsk/$f4" ]] ; then echo "WARNING: can't move: $f4 not found on $dsk" | tee -a $log ; fi # just checking...
-	if [[   -f "$bupdir/$dsk/$f6" ]] ; then echo "WARNING: can't move: $f6 already exists on $dsk - skipping" | tee -a $log ; continue ; fi # just checking...
-	mkdir -p "$(dirname "$bupdir/$dsk/$f6")"
+grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f1 f3 f4 f5 f6 f7 ; do #
+	if [[ ! -f "$bupdir/$dsk/$f5" ]] ; then echo "WARNING: can't move: $f5 not found on $dsk" | tee -a $log ; fi # just checking...
+	if [[   -f "$bupdir/$dsk/$f7" ]] ; then echo "WARNING: can't move: $f7 already exists on $dsk - skipping" | tee -a $log ; continue ; fi # just checking...
 	if [[ -n $dryrun ]] ; then
-		echo "Will move: $bupdir/$dsk/$f4 to $bupdir/$dsk/$f6" | tee -a $log
+		echo "Will move: $bupdir/$dsk/$f5 to $bupdir/$dsk/$f7" | tee -a $log
 	else
-		mv "$bupdir/$dsk/$f4" "$bupdir/$dsk/$f6" ; # no output to log or stdout, only stderr
+		mkdir -p "$(dirname "$bupdir/$dsk/$f7")"
+		mv "$bupdir/$dsk/$f5" "$bupdir/$dsk/$f7" ; # no output to log or stdout, only stderr
 	fi
+	echo "$(dirname "$bupdir/$dsk/$f5")" >> $dlist # directory could now be empty
 done
 
 # cleanup any trailing empty directories
 if [[ -n $dryrun ]] ; then
 	echo "Skipping empty directory cleanup (in dry run, the relevant directories are not yet emptied)" | tee -a $log
+	sort -u $dlist | while read f ; do echo "Will (try to) remove directory: $f" ; done | tee -a log
 else
 	echo "Cleanup of empty directories on $dsk" | tee -a $log
-	find "$bupdir/$dsk" -depth -mindepth 1 -type d -empty -exec rmdir {} \; # no output to log or stdout, only stderr
+#	find "$bupdir/$dsk" -depth -mindepth 1 -type d -empty -exec rmdir {} \; # no output to log or stdout, only stderr
+	sort -u $dlist | while read f ; do rmdir "$f" 2>/dev/null ; done # could use xargs here
 fi
+rm $dlist
 df -B 1 "$bupdir/$dsk" | tee -a $log # log how much space was deleted / will be reused
 
 echo "Copying modified and new files to $dsk" | tee -a $log
 # copy files with rsync - using rsync also makes it possible to resume copying after the process got aborted
 # note: with --files-from, the -r (--recursive) from -a is not implied (see man page), so if the input list contains directories, only the directory is copied, not its contents (that's how it should be in this case)
-# note: the --delete-before option doesn't seem to work to clean up any rogue files before copying (for instance, when reusing the disk second time 'round and reusing as many files as possible). hence the files were cleaned out with diff producing the ^- wipe list
+# note: the --delete-before option doesn't seem to work to clean up any rogue files before copying because it works off an explicit input list - it only copies new and modified files
+#       (for instance, when reusing the disk a second time and reusing as many files as possible). hence the files need to be cleaned out explicitly, using the ^- wipe list from the md5diff output
+# note: --inplace makes sure rsyncd doesn't create the .filename.ext.uniquesuffix tmp files, which cause problems with long file names and the ecryptfs limit
 flist=$(mktemp)
 grep -P '^\*' "$bdl" | cut -f 8 >  $flist # the modified files
 grep -P '^\+' "$bdl" | cut -f 5 >> $flist # the new files
 if [[ -z $pwdfile ]] ; then
 	# interactive mode
-	tmp=$(mktemp) ; echo -n "Password: " ; read -s pwd ; echo "$pwd" > $tmp ; chmod 000 $tmp ; pwdfile=$tmp
+	tmp=$(mktemp) ; chmod 000 $tmp ; echo -n "Password: " ; read -s pwd ; echo "$pwd" > $tmp ; pwdfile=$tmp
 fi
 if [[ -n $dryrun ]] ; then
-	#rsync -avn --files-from="$flist" --relative --dirs / "$bupdir/$dsk" | tee -a $log
-	rsync -avn --files-from="$flist" --relative --dirs --copy-dirlinks --password-file="$pwdfile" rsync://admin@192.168.2.101/NetBackup "$bupdir/$dsk" | tee -a $log
+	#rsync -avn --files-from="$flist" --relative --dirs / "$bupdir/$dsk" | tee -a $log # use rsync to copy from and to local filesystem
+	rsync -avn --files-from="$flist" --relative --dirs --copy-dirlinks --inplace --password-file="$pwdfile" rsync://you@yourserver/NetBackup "$bupdir/$dsk" | tee -a $log
 else
 	#rsync -av --files-from="$flist" --relative --dirs / "$bupdir/$dsk" # use rsync to copy from and to local filesystem
-	rsync -av --files-from="$flist" --relative --dirs --copy-dirlinks --password-file="$pwdfile" rsync://admin@192.168.2.101/NetBackup "$bupdir/$dsk/" # use rsync to read files from remote server and store on local file system
-	# PS> no output to log or stdout, only stderr
+	rsync -av --files-from="$flist" --relative --dirs --copy-dirlinks --inplace --password-file="$pwdfile" rsync://you@yourserver/NetBackup "$bupdir/$dsk/" | tee -a $log # use rsync to read files from remote server and store on local file system
 fi
-if [[ -n $tmp ]] ; then rm $tmp ; fi
+if [[ -n $tmp ]] ; then rm $tmp ; fi # delete pwdfile
 rm $flist
 
 # re-read the disk by calculating the md5 check sums and register the moddate and size
@@ -117,9 +136,8 @@ if [[ -n $dryrun ]] ; then
 	echo "Skipping verification of $bupdir/$dsk to $wrkdir/$dsk.[fst|md5] (dry run)" | tee -a $log
 	# and don't unmount
 else
-	echo "Fast scan of $dsk (save output in $wrkdir/$dsk.fst)" | tee -a $log
-	mkfilelist_fast "$bupdir/$dsk" | sed -e "s#\t$bupdir/$dsk/#\t#" > "$wrkdir/$dsk.fst"
 	if [[ ${opts[0]} == md5 ]] ; then
+		# create an .md5 file listing
 		if [[ -z ${opts[1]} ]] ; then
 			# full md5 scan
 			echo "Verifying $dsk (save output in $wrkdir/$dsk.md5)" | tee -a $log
@@ -138,6 +156,10 @@ else
 		else
 			echo "Error: wrong parameter ${opts[1]} - skipping md5sum verification" | tee -a $log
 		fi
+	else
+		# create an .fst file listing
+		echo "Fast scan of $dsk (save output in $wrkdir/$dsk.fst)" | tee -a $log
+		mkfilelist_fast "$bupdir/$dsk" | sed -e "s#\t$bupdir/$dsk/#\t#" > "$wrkdir/$dsk.fst"
 	fi
 #	echo "Unmounting $dsk"
 #	umount "$bupdir/$dsk"
