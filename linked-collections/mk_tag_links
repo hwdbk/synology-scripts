@@ -9,9 +9,9 @@ dst=${@:$#:1} # last argument - target directory to create the hard links in
 for d in "${dir[@]}" ; do if [[ ! -d "$d" ]] ; then echo Source directory "$d" does not exist - exiting ; exit 1 ; fi ; done
 if [[ ! -d "$dst" ]] ; then echo Target directory "$dst" does not exist - exiting ; exit 1 ; fi
 tmp=$(mktemp) # tmp file to collect the links so we can cleanup those that don't belong in the target dir afterwards with cleanup_links
-grep -arlF "com.apple.metadata:_kMDItemUserTags" "${dir[@]}" --include='*@SynoEAStream' --exclude='*html@SynoEAStream' | grep -v -- "-/" | xargs -d'\n' grep -alF "$tag" | while read i ; do
+grep -arlF "com.apple.metadata:_kMDItemUserTags" "${dir[@]}" --include='*@SynoEAStream' --exclude='*.html@SynoEAStream' --exclude='*.jpg@SynoEAStream' | grep -v -- "-/" | xargs -d'\n' grep -alF "$tag" | while read i ; do
 	i=${i/@eaDir\/} ; i=${i%@SynoEAStream}
-	# prefiltered candidate file with tag string in it is found - make sure it is a regular file (e.g. not a directory) and that the $tag is actually present in the xattrs data structure (grep -x matches the whole line)
+	# prefiltered candidate file with tag string in it is found - make sure it is a regular file (i.e. not a directory) and that the $tag is actually present in the xattrs data structure (grep -x matches the whole line)
 	if [[ -f "$i" && -n $(tag "$i" | grep -xF "$tag") ]] ; then
 		f=$(basename "$i")
 		echo "$dst/$f" >> $tmp
