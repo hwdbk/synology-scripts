@@ -1,26 +1,46 @@
 #!/bin/bash
 
 # uses associative array: requires bash 4 or later
-if (( ${BASH_VERSION%%.*} < 4 )) ; then
+# (on Mac OS X, you must use bash from macports or brew (/opt/local/bin/bash, not /bin/bash, edit the shebang)
+if (( ${BASH_VERSINFO[0]} < 4 )) ; then
 	echo "error: $0 requires bash v4 or later" >&2
 	exit 1
 fi
 declare -A md5
+
 # fill md5 set, if possible
 if [[ $1 == "-f" ]] ; then
 	if [[ -f $2 ]] ; then
 		prevmd5=$2 ; shift 2
 		echo "reusing md5sums from $prevmd5" >&2
-		while read a b m f ; do md5+=(["$a|$b|$f"]=$m) ; done < "$prevmd5" # create a composite key from moddate, size and full path
+		while IFS=$'\t' read a b m f ; do md5+=(["$a|$b|$f"]=$m) ; t=$a ; done < "$prevmd5" # create a composite key from moddate, size and full path # save a real a in t to determine the time resolution
 		echo "read ${#md5[@]} md5sums from $prevmd5" >&2
+		if (( ${#t} == 15 )) ; then
+			echo "using second-accurate moddates from $prevmd5" >&2 ; nano=
+		else
+			echo "using nanosecond-accurate moddates from $prevmd5" >&2 ; nano=y # note: gfind -printf produces .10 digits, not .9
+		fi
 	else
 		echo "$0: wrong parameter: $1 $2" >&2 ; exit 1
 	fi
 fi
 
 if (( $# == 0 )) ; then
-	echo "$0: nothing to scan" >&2 ; exit 1
+	echo "$0: nothing to scan" >&2
+	echo "usage: $0 [-i] [-f previous_scan.md5] directory|file [...]" >&2
+	echo "print on stdout a list with" >&2
+	echo "modification date<tab>file size<tab>md5sum<tab>file path" >&2
+	echo "if a previous_scan.md5 file is passed as parameter, it will insert the results of" >&2
+	echo "that previous scan (if there is a match by file path, modification date and size) instead of calculating the md5sum" >&2
+	exit 1
 fi
+
+# check input files/directories
+for i in "$@" ; do
+	if [[ ! -e $i ]] ; then
+		echo "$0: $i: wrong parameter (not a directory or file)" >&2 ; exit 1
+	fi
+done
 
 # stats
 nscan=0 # number of files scanned tracker
@@ -28,42 +48,33 @@ sscan=0 # file size scanned tracker
 nprev=0 # number of files found in previous scan tracker
 sprev=0 # file size of files found in previous scan tracker
 
-for i in "$@" ; do
-	if [[ -e "$i" ]] ; then
-		# use GNU find -printf format (on Mac OS X, you must install gfind from macports or brew)
-		while IFS=$'\t' read a b f ; do
-			((nscan++)) ; ((sscan+=b)) # update stats for totals
-			c=
-			if [[ -n $prevmd5 ]] ; then
-#				g=$f ; for i in '^' '.' '+' '|' '(' ')' '[' ']' '$' ; do g=${g//$i/\\$i} ; done ; g=${g//\?/\\?} ; g=${g//\*/\\*} # escaped version of f to be used in grep -P (note: grep -P requires other chrs to be escaped than plain grep)
-#				while IFS=$'\t' read f1 f2 f3 f4 ; do
-#					c="$f3-\t$f" # use the result from prevmd5
-#				done < <(grep -P "^$a\t$b\t[0-9a-f-]*\t$g\$" $prevmd5)
-				c=${md5["$a|$b|$f"]} ; if [[ -n $c ]] ; then
-					c="$c-\t$f" # tag reused md5sum with (another) trailing dash
-					((nprev++)) ; ((sprev+=b)) # update stats for reused md5sums
-				fi
-			fi
-			if [[ -z $c ]] ; then # no previous value for md5sum used - we need to calculate
-				if [[ -n $prevmd5 ]] ; then echo "$0: info: calculating md5sum for $f" >&2 ; fi
-				c=$(md5sum "$f" | sed -e "s/  /\t/")
-			fi
-			echo -e "$a\t$b\t$c"
-		done < <(find "$i" -type f \( ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sed -e 's/\(^........_......\)\.[0-9]*/\1/')
-	else
-		echo "$0: $i: wrong paramter" >&2
-		echo "usage: $0 [-f previous_scan.md5] directory|file [...]" >&2
-		echo "print on stdout a list with" >&2
-		echo "modification date<tab>file length<tab>md5sum<tab>file path" >&2
-		echo "if a previous_scan.md5 file is passed as parameter, it will insert the results of" >&2
-		echo "that previous scan (if there is a match by file path within) instead of calculating the md5sum" >&2
+# parse GNU find -printf format (on Mac OS X, you must use gfind from macports or brew (/opt/local/bin/gfind, not /usr/bin/find)
+while IFS=$'\t' read a b f ; do
+	if [[ -d $f ]] ; then
+		if [[ $f == *- ]] ; then echo "skipping $f/" >&2 ; fi
+		continue; # nothing else to report for directories
 	fi
-done
+	((nscan++)) ; ((sscan+=b)) # update stats for totals
+	c=
+	if [[ -n $prevmd5 ]] ; then
+		if [[ -n $nano ]] ; then c=${md5["${a:0:25}|$b|$f"]} ; else c=${md5["${a:0:15}|$b|$f"]} ; fi
+		if [[ -n $c ]] ; then
+			c="$c-\t$f" # tag reused md5sum with (another) trailing dash
+			((nprev++)) ; ((sprev+=b)) # update stats for reused md5sums
+		fi
+	fi
+	if [[ -z $c ]] ; then # no previous value for md5sum used - we need to calculate
+		if [[ -n $prevmd5 ]] ; then echo "$0: info: calculating md5sum for $f" >&2 ; fi
+		c=$(md5sum "$f" | sed -e "s/  /\t/")
+	fi
+	echo -e "${a:0:25}\t$b\t$c"
+done < <(find "$@" \( -type f -o -type d \) ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" )
 
 # print stats
 if [[ -n $prevmd5 ]] ; then
-echo "$nscan files scanned ($sscan bytes on disk)" >&2
-echo "$nprev md5sums reused from $prevmd5: $sprev bytes skipped" >&2
+	echo "$nscan files scanned ($sscan bytes on disk)" >&2
+	echo "$nprev md5sums reused from $prevmd5: $sprev bytes skipped" >&2
 fi
 echo "$((nscan-nprev)) files read ($((sscan-sprev)) bytes read)" >&2
+
 #EOF
