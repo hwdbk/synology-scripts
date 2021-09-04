@@ -1,9 +1,10 @@
 #!/bin/bash
 # usage: backup_update_copy [pwdfile] [path/]backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]
 
+# set srcdir: the rsync source, which may be a remote rsync server, or a local path
+srcdir=rsync://yourrsyncaccount@yourserver/NetBackup
 # set bupdir: the directory where the unencrypted mounts of the backup disks will appear e.g. ($bupdir/20201118_001)
-#bupdir="/volumeSATA1/satashare1-1"
-bupdir=/volume1/NetBackup
+bupdir="/volumeSATA1/satashare1-1"
 
 if [[ $1 != *.lst && -f $1 ]] ; then pwdfile=$1 ; shift ; chmod 000 "$pwdfile" ; fi # restrict access just in case one forgot
 
@@ -119,12 +120,12 @@ if [[ -z $pwdfile ]] ; then
 	tmp=$(mktemp) ; chmod 000 $tmp ; echo -n "Password: " ; read -s pwd ; echo "$pwd" > $tmp ; pwdfile=$tmp
 fi
 if [[ -n $dryrun ]] ; then
-	#rsync -avn --files-from="$flist" --relative --dirs / "$bupdir/$dsk" | tee -a $log # use rsync to copy from and to local filesystem
-	rsync -avn --files-from="$flist" --relative --dirs --copy-dirlinks --inplace --password-file="$pwdfile" rsync://you@yourserver/NetBackup "$bupdir/$dsk" | tee -a $log
+	rsyncopts=-avn
 else
-	#rsync -av --files-from="$flist" --relative --dirs / "$bupdir/$dsk" # use rsync to copy from and to local filesystem
-	rsync -av --files-from="$flist" --relative --dirs --copy-dirlinks --inplace --password-file="$pwdfile" rsync://you@yourserver/NetBackup "$bupdir/$dsk/" | tee -a $log # use rsync to read files from remote server and store on local file system
+	rsyncopts=-av
 fi
+#rsync $rsyncopts --files-from="$flist" --relative --dirs / "$bupdir/$dsk" | tee -a $log # use rsync to copy from and to local filesystem
+rsync $rsyncopts --files-from="$flist" --relative --dirs --copy-dirlinks --inplace --password-file="$pwdfile" "$srcdir" "$bupdir/$dsk" | tee -a $log # use rsync to read files from remote server and store on local file system
 if [[ -n $tmp ]] ; then rm $tmp ; fi # delete pwdfile
 rm $flist
 
