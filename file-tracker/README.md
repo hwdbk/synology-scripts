@@ -63,4 +63,4 @@ The output is checked/filtered easily by using grep, e.g. `md5diff oldfs.md5 new
 
   `md5diff before.[fst|md5] after.[fst|md5] | grep ^- | countsize_filelist`
 
-`countsize_filelist` reads from (a bunch of) file(s) passed as arguments, or from stdin.
+`countsize_filelist` reads from (a bunch of) file(s) passed as arguments, or from stdin. Use `-h` to print the output with thousands-separators for better readability.
