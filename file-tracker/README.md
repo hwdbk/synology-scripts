@@ -9,7 +9,7 @@ md5sum, which is more robust but can take a lot of time).
 modification date_time, file size, path and filename. Although not 100% bullet-proof (there may be 2 files with the same size,
 same modification date and yet have different contents), in practical situations it is more than enough to do a quick scan).
 
-Example output: `20010330_150816\t3069\t-\t./Standards/tv-anytime/SP004v11_schema.xsd`
+Example output: `20010330_150816.364274114\t3069\t-\t./Standards/tv-anytime/SP004v11_schema.xsd`
 
 Note: as of 2021-09-04, the double tab is replaced with tab-dash-tab to ease parsing the file in bash and make the form consistent with the output of `mkfilelist_md5`. `md5diff` supports both formats. To convert old form to new form, use something like:
 
@@ -21,7 +21,7 @@ from disk ensuring that any disk corruption gets detected (producing I/O errors)
 the data as the data fingerprint, which will be associated with the file regardless its modification date and will stay the
 same as long as the file is not modified/tampered with.
 
-Example output: `20010330_150816\t3069\te94f17c8c2124c759216dcb98ff864f0\t./Standards/tv-anytime/SP004v11_schema.xsd`
+Example output: `20010330_150816.364274114\t3069\te94f17c8c2124c759216dcb98ff864f0\t./Standards/tv-anytime/SP004v11_schema.xsd`
 
 Scanning an entire filesystem can take a lot of time. Usually, it's not necessary (or desired) to run a full scan often; only new/changed files are of particular interest. When used with `-f previous_scan.md5`, `mkfilelist_md5` will use the results of a previous scan for files that haven't changed (as far as their modification date, file size and file path are concerned; it can't vouch for its contents - to check that, a full (re)scan would be needed). It will insert the previous result's md5sum in the output file rather than reading the entire file and calculating the md5sum. This saves a lot of time but doesn't validate the file's contents, obviously. To indicate that the/a md5sum value was reused, a dash (`-`) is appended to the md5sum. When the process is repeated multiple generations of reused md5sums are indicated by the number of dashes. If there are a lot of them, a full scan might be in order.
 
@@ -35,23 +35,23 @@ not the other way around). Which brings me to the program to check/process these
 
 lines starting with -: deleted files ('wiped' list)
 
-  format: `-\tmoddate\tsize\t[md5sum]\tpath\n`
+  format: `-\tmoddate\tsize\t[md5sum|-]\tpath\n`
   
 lines starting with =: files that moved to a different directory, but file name stayed the same ('moved' list)
 
-  format: `=\tmoddate\tsize\t[md5sum]\tpath\t->\tnewpath\n`
+  format: `=\tmoddate\tsize\t[md5sum|-]\tpath\t->\tnewpath\n`
   
 lines starting with >: files that were renamed (possibly to a different directory) ('renamed' list)
 
-  format: `>\tmoddate\tsize\t[md5sum]\tpath\t->\tnewpath\n`
+  format: `>\tmoddate\tsize\t[md5sum|-]\tpath\t->\tnewpath\n`
   
 lines starting with *: files that were modified ('modified' list)
 
-  format: `*\tmoddate\tsize\t->\tnewmoddate\tnewsize\t[md5sum]\tpath\n`
+  format: `*\tmoddate\tsize\t->\tnewmoddate\tnewsize\t[newmd5sum|-]\tpath\n`
 
 lines starting with +: files that were added ('new files' list)
 
-  format: `+\tmoddate\tsize\t[md5sum]\tpath\n`
+  format: `+\tmoddate\tsize\t[md5sum|-]\tpath\n`
 
 The output is checked/filtered easily by using grep, e.g. `md5diff oldfs.md5 newfs.md5 | grep ^-` will filter the list of deleted files, etc.
 
