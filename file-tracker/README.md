@@ -33,29 +33,33 @@ not the other way around). Which brings me to the program to check/process these
 
 `md5diff` output format:
 
-lines starting with -: deleted files ('wiped' list)
+lines starting with `-`: deleted files ('wiped' list)
 
   format: `-\tmoddate\tsize\t[md5sum|-]\tpath\n`
   
-lines starting with =: files that moved to a different directory, but file name stayed the same ('moved' list)
+lines starting with `=`: files that moved to a different directory, but file name stayed the same ('moved' list)
 
   format: `=\tmoddate\tsize\t[md5sum|-]\tpath\t->\tnewpath\n`
   
-lines starting with >: files that were renamed (possibly to a different directory) ('renamed' list)
+lines starting with `>`: files that were renamed (possibly to a different directory) ('renamed' list)
 
   format: `>\tmoddate\tsize\t[md5sum|-]\tpath\t->\tnewpath\n`
   
-lines starting with *: files that were modified ('modified' list)
+lines starting with `*`: files that were modified ('modified' list)
 
   format: `*\tmoddate\tsize\t->\tnewmoddate\tnewsize\t[newmd5sum|-]\tpath\n`
 
-lines starting with +: files that were added ('new files' list)
+lines starting with `+`: files that were added ('new files' list)
 
   format: `+\tmoddate\tsize\t[md5sum|-]\tpath\n`
 
-The output is checked/filtered easily by using grep, e.g. `md5diff oldfs.md5 newfs.md5 | grep ^-` will filter the list of deleted files, etc.
+The output can be checked/filtered easily by using grep, e.g. `md5diff oldfs.md5 newfs.md5 | grep ^-` will filter the list of deleted files, etc.
 
 `md5diff` is also the basis for the `backup_update_...` scripts because it directs these scripts to handle file movement, modifications, deletions and additions from snapshot to snapshot (the .fst or .md5 file being the 'snapshot').
+
+Note on file modification date: the program has the option `-nano` to compare the full date_time.nanoseconds accuracy provided by modern file systems. However, the default is *not* using nanosecond precision because there are many mechanisms that do not pass on the subsecond accuracy. For instance, many smb and afp clients will always receive the whole second (e.i. date_time.000000000) even if the underlying file system (ext4, btrfs, etc.) *does* maintain proper subsecond accuracy. To make matters worse, there are known processes that reset the subsecond precision in the underlying file system. A very sorry example of this is the combination of setting a Finder attribute (on any file) when the file is accessed over afp.
+
+The default of not using nanosecond precision evades this problem and, as a positive side effect, mimicks the way rsync matches modification dates (1-second accuracy), even though rsync properly transfers the subsecond part when copying a file. Use `-nano` if extra confidence is needed and the lists are from a local file system or when tracking those processes that ruin subsecond time stamps. Use the default in most other cases.
 
 # Extras
 
