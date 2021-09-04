@@ -1,13 +1,31 @@
 #!/bin/bash
+# friendly form of mounting an encrypted @share@ by hand
 
 mode=ro
 if [[ $1 == "rw" ]] ; then mode=rw ; shift ; fi
 
-if [[ $# == 0 || ! -d "$1" || ! -d "$2" ]] ; then
-	echo "usage: $0 [rw] ecryptfs_dir mount_dir" >&2
+if [[ $# == 0 || ! -d "$1" || ( -n $2 && ! -d "$2" ) ]] ; then
+	echo "usage: $0 [rw] @ecryptfs_dir@ [mount_dir]" >&2
 	exit 1
 fi
 
-mount.ecryptfs "$1" "$2" -o $mode,noauto,ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y
+src=$1
+mnt=$2
+if [[ -z $mnt ]] ; then
+	d=$(basename "$src") ; d=${d#@} ; d=${d%@}
+	mnt="$(dirname "$src")/$d" # create mount point next to @share@
+	if [[ ! -d $mnt ]] ; then
+		echo "creating mount point $mnt"
+		mkdir -p "$mnt"
+	fi
+fi
+# it is possible to mount an ecryptfs folder onto itself. the encrypted files will be 'hidden' underneath the mount point (actually, pretty neat)
+# however, synology uses the @share@ convention to indicate the encrypted folder, and mount this on 'share'
+
+echo "mounting ecryptfs folder $src on $mnt [$mode]"
+mount.ecryptfs "$src" "$mnt" -o $mode,noauto,ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y
+# do an ls for confirmation (shows "total 0" if the dir is empty); if you see ECRYPTFS_FNEK_ENCRYPTED.* files/directories, the password was wrong
+# it helps to have the .ecryptfs/sig-cache.txt in place, to prevent mistyped passwords, but you could still just type the wrong right one
+ls -l "$mnt"
 
 #EOF
