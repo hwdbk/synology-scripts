@@ -54,7 +54,7 @@ if [[ ! -f "$bdl" ]] ; then echo "Backup todo list $bdl not found - exit" ; exit
 log="$wrkdir/$dsk.log"
 if [[ -n $dryrun ]] ; then log=/dev/null ; fi # don't overwrite log file in dryrun (could be enabled if necessary)
 
-echo "Creating backup disk $dn from disk set \"$name\" ($bdl) in $bupdir" | tee $log
+echo "Updating backup disk $dn from disk set \"$name\" ($bdl) in $bupdir" | tee $log
 if [[ -n $dryrun ]] ; then echo ">>DRY RUN<<" | tee -a $log ; fi
 dlist=$(mktemp) # collect a list of touched directories to speed up cleanup
 
