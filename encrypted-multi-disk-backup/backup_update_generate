@@ -85,9 +85,10 @@ grep '^#' "$dff" | tee -a $log # save the comment lines in the log file which is
 # we need to reconstruct this info. the algorithm below uses ${fin[@]} to locate the right disk to delete, move, rename or modify the file
 
 # read the source disk set in an associative array so we can quickly find on which disk a certain file is currently located (much faster than grep)
+# PS> strip subsecond moddate part because it's not used/needed in md5diff (no -nano, use 1-second match accuracy reducing false positive modifications)
 echo -n "Reading source disks contents:"
 declare -A src;
-for f in "${fin[@]}" ; do echo -n " $(basename "$f")" ; while IFS=$'\t' read a b c d ; do src+=(["$a|$b|$d"]="$f") ; done < "$f" ; done
+for f in "${fin[@]}" ; do echo -n " $(basename "$f")" ; while IFS=$'\t' read a b c d ; do a=${a:0:15} ; src+=(["$a|$b|$d"]="$f") ; done < "$f" ; done
 echo " - done"
 
 # cleanup previous invocation results because we use >> below
