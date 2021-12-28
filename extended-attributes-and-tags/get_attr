@@ -33,18 +33,19 @@ if [[ ! -f $f ]] ; then if [[ ! -n $quiet ]] ; then echo "$0: $f not found" >&2 
 # convert @SynoEAStream file to hex and skip to the attribute key string
 #if ! grep -qF "$1" "$f" ; then echo "$f: no $1 attribute found" >&2; exit ; fi
 # parse the @SynoEAStream as a hex string since it is a binary file
-#len=$((16#$(xxd -ps -s 42 -l 4 "$f"))) # length of the xattr data structure found at offset 42 (0x2a)
-#printf "xattr len=0x%08x\n" $len
-keyoff=$(grep -oba "$1" "$f" | sed -e "s/:.*$//")
-if [[ -z $keyoff ]] ; then if [[ ! -n $quiet ]] ; then echo "$0: $f: No such xattr: $1" >&2 ; fi ; exit 1 ; fi
-#printf "key ($1) at 0x%08x\n" $keyoff
-keyoff=$((keyoff-11)) # the data offset and length are preceding the key
-valoff=$((16#$(xxd -ps -s $keyoff -l 4 "$f")))
-vallen=$((16#$(xxd -ps -s $((keyoff+4)) -l 4 "$f")))
+hex=$(xxd -ps "$f" | tr -d '\n') # read the entire file in a hex string (strip the newlines)
+keyhex=$(xxd -ps - <<< "$1" | tr -d '\n') ; keyhex=${keyhex:0:-2}00 # read the key in a hex string and strip the \n (0a) at the end
+keyhdr=${hex%%$keyhex*}
+if [[ -z $hex || ${#hex} == ${#keyhdr} ]] ; then if [[ ! -n $quiet ]] ; then echo "$0: $f: No such xattr: $1" >&2 ; fi ; exit 1 ; fi
+keyhdr=${keyhdr: -22} # the key header is 11 bytes before the key itself
+valoff=$((16#${keyhdr:0:8})) # and consist of a 4-byte offset to the xattr value
+vallen=$((16#${keyhdr:8:8})) # and a 4-byte length of the xattr value
+keylen=$((16#${keyhdr:20:2})) # and two bytes padding + one byte strlen of the key (incl. the trailing 00)
+if (( keylen*2 != ${#keyhex} )) ; then if [[ ! -n $quiet ]] ; then echo "$0: $f: xattr keylen mismatch: $1" >&2 ; fi ; exit 1 ; fi
 #printf "value at 0x%08x with length 0x%08x\n" $valoff $vallen
 if [[ -n $usehex ]] ; then
-	xxd -ps -s $valoff -l $vallen -c $((vallen*2)) "$f"
+	echo "${hex:$((valoff*2)):$((vallen*2))}"
 else
-	xxd -ps -s $valoff -l $vallen -c $((vallen*2)) "$f" | xxd -ps -r -
+	echo "${hex:$((valoff*2)):$((vallen*2))}" | xxd -ps -r -
 fi
 #EOF
