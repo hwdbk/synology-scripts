@@ -25,9 +25,11 @@ if [[ $1 == "-f" ]] ; then
 	fi
 fi
 
+if [[ $1 == -a ]] ; then all=-a ; filter=() ; shift ; else all= ; filter=( ! -path "*/#recycle/*" ! -path "*-/*" ) ; fi
+
 if (( $# == 0 )) ; then
-	echo "$0: nothing to scan" >&2
-	echo "usage: $0 [-i] [-f previous_scan.md5] directory|file [...]" >&2
+	echo "$(basename "$0"): nothing to scan" >&2
+	echo "usage: $(basename "$0") [-a] [-f previous_scan.md5] directory|file [...]" >&2
 	echo "print on stdout a list with" >&2
 	echo "modification date<tab>file size<tab>md5sum<tab>file path" >&2
 	echo "if a previous_scan.md5 file is passed as parameter, it will insert the results of" >&2
@@ -51,7 +53,7 @@ sprev=0 # file size of files found in previous scan tracker
 # parse GNU find -printf format (on Mac OS X, you must use gfind from macports or brew (/opt/local/bin/gfind, not /usr/bin/find)
 while IFS=$'\t' read a b f ; do
 	if [[ -d $f ]] ; then
-		if [[ $f == *- ]] ; then echo "skipping $f/" >&2 ; fi
+		if [[ $f == *- && -z $all ]] ; then echo "skipping $f/" >&2 ; fi
 		continue; # nothing else to report for directories
 	fi
 	((nscan++)) ; ((sscan+=b)) # update stats for totals
@@ -68,7 +70,7 @@ while IFS=$'\t' read a b f ; do
 		c=$(md5sum "$f" | sed -e "s/  /\t/")
 	fi
 	echo -e "${a:0:25}\t$b\t$c"
-done < <(find "$@" \( -type f -o -type d \) ! -path "*/#recycle/*" ! -path "*/@eaDir/*" ! -path "*-/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" )
+done < <(find "$@" \( -type f -o -type d \) "${filter[@]}" ! -path "*/@eaDir/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" )
 
 # print stats
 if [[ -n $prevmd5 ]] ; then
