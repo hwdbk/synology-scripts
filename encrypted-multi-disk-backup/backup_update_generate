@@ -1,7 +1,8 @@
 #!/bin/bash
 
 if (( $# < 2 )) || [[ $1 == "--help" ]] ; then
-	echo "usage: backup_update_generate filelist.[fst|md5] backup_disksetname_disk1.[fst|md5][.locked] [backup_disksetname_disk2.[fst|md5][.locked] ...]" >&2
+	echo "usage: backup_update_generate --help" >&2
+	echo "       backup_update_generate filelist.[fst|md5] backup_disksetname_disk1.[fst|md5][.locked] [backup_disksetname_disk2.[fst|md5][.locked] ...]" >&2
 	echo "       generated backup recipe files are written in the current directory" >&2
 	echo "note:  make sure that filelist.[fst|md5] uses the same (UTF-8) encoding as the backup_disksetname_diskN file(s)" >&2
 	echo "note:  the script depends on md5diff.cpp as a compiled binary to map out the differences since last backup" >&2
