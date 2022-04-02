@@ -11,8 +11,8 @@
 #         grep -arlF "com.apple.metadata:_kMDItemUserTags" <path> --include='*@SynoEAStream' | xargs -d'\n' grep -alF <tag> | while read f ; do tag "$f" ; done
 #     or look at the mk_tag_links script.
 # output:
-#     prints the Finder tags (user tags and Finder labels) associated with file (implements the 'tag -l -N' -equivalent of the mac version).
-#     the script prints each found tag on a separate line (implements the '-g | --garrulous : Display tags each on own line' -equivalent of the mac version).
+#     prints the Finder tags (user tags and Finder labels) associated with file, each on a separate line,
+#     effectively implementing the 'tag -l -N -g' -equivalent of the jdberry Python script version (--list --no-name --garrulous).
 #     if the file does not contain tags (empty com.apple.metadata:_kMDItemUserTags bplist), the script prints nothing.
 #     prints a msg on stderr when the input is not according to expectation (parse error).
 # note:
