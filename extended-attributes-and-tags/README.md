@@ -14,7 +14,7 @@ The scripts provided here attempt to do the same natively from the Synology side
 - the `tag` script interprets this raw data and translates it according to the Apple data structures laid out for the `com.apple.metadata:_kMDItemUserTags` extended attribute. It prints the tags on separate lines, just like jdberry's `tag -gN` would do (`--garrulous --no-name`).
 - the `listtags` script calls `tag` for all files (and directories, recursively) passed on the commandline. It prints the tags as comma-separated list on one line per file, just like jdberry's `tag -lR` would do, but skipping files that have no tags and printing the full path. Useful to keep a backup copy of all tags, or to check/track tags when making changes to the file system.
 - the script `check_filename_lengths` checks if the file names used are not too long. This is an issue because on any file system, the maximum file name length is limited; if you want to use extended attributes on top, the file name has to have room for the added suffix `@SynoResource` or `@SynoEAStream`, limiting the effective max. file name length to 13 less than the hard limit.
--- Using eCryptfs, Synology _does_ allow you to set extended attributes on filenames with length between 131 and 143, however, it uses an undocumented mangling algorithm to keep the `@SynoResource` and/or `@SynoEAStream` file name at 143 characters exactly:
+  - Using eCryptfs, Synology _does_ allow you to set extended attributes on filenames with length between 131 and 143, however, it uses an undocumented mangling algorithm to keep the `@SynoResource` and/or `@SynoEAStream` file name at 143 characters exactly:
 
 ```
 File names of 120-130 characters
@@ -46,6 +46,6 @@ File names with 131-143 characters
 ```
 This is a problem because with a mangled last part, the tools here to read and interpret the `@SynoEAStream` file won't be able to find the right associated file.
 
--- When _not_ using eCryptfs, but ext4, the same thing happens, but at much longer lengths: the file name length limit in ext4, for instance, is 255, and the usable file name length for files with extended attributes, and not mangling the file names of the @Syno files, is 13 less, i.e. 242.
+  - When _not_ using eCryptfs, but ext4, the same thing happens, but at much longer lengths: the file name length limit in ext4, for instance, is 255, and the usable file name length for files with extended attributes, and not mangling the file names of the @Syno files, is 13 less, i.e. 242.
 
 Finally, extended attributes (and hence, tags) are retrieved read-only. That is because the structure of the `@SynoEAStream` file is undocumented and after reverse-engineering already turned out to be quite complicated just to retrieve the binary data, let alone add or modify extended attributes to that file.
