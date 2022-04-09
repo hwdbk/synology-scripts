@@ -70,7 +70,7 @@ while IFS=$'\t' read a b f ; do
 		c=$(md5sum "$f" | sed -e "s/  /\t/")
 	fi
 	echo -e "${a:0:25}\t$b\t$c"
-done < <(find "$@" \( -type f -o -type d \) "${filter[@]}" ! -path "*/@eaDir/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" )
+done < <(find "$@" \( -type f -o -type d \) "${filter[@]}" ! -path "*/@eaDir/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sort -k 3 )
 
 # print stats
 if [[ -n $prevmd5 ]] ; then
