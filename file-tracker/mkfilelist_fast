@@ -20,7 +20,7 @@ if [ -e "$i" ] ; then
 	# use GNU find -printf format
 	# one could use date and ls to get the moddate and size, but getting nanosecond resolution is a problem
 	# stat could also be used and does show nanosecond resolution, but stat tends to have different format specifiers on different systems
-	find "$i" -type f \( "${filter[@]}" ! -path "*/@eaDir/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t-\t%p\n"  | sed -e 's/\(^........_......\..........\)./\1/'
+	find "$i" -type f \( "${filter[@]}" ! -path "*/@eaDir/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" \) -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t-\t%p\n"  | sed -e 's/\(^........_......\..........\)./\1/' | sort -k 4
 else
 	echo "usage: mkfilelist_fast file|directory [file|directory ...]" >&2
 	echo "print on stdout a list with" >&2
