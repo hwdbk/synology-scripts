@@ -6,18 +6,24 @@ srcdir=rsync://yourrsyncaccount@yourserver/NetBackup
 # set bupdir: the directory where the unencrypted mounts of the backup disks will appear e.g. ($bupdir/20201118_001)
 bupdir="/volumeSATA1/satashare1-1"
 
-if [[ $1 != *.lst && -f $1 ]] ; then pwdfile=$1 ; shift ; chmod 000 "$pwdfile" ; fi # restrict access just in case one forgot
+if [[ $1 != *.lst ]] ; then
+	if [[ -f $1 ]] ; then pwdfile=$1 ; shift ; chmod 000 "$pwdfile" # restrict access just in case one forgot
+	else echo "can not open rsync passwd file $1" >&2 ; exit 1 ; fi
+fi
 
 if [[ ! -d "$bupdir" ]] ; then echo "Backup target directory $bupdir not found - exit" ; exit 1 ; fi
 
 if [[ $1 == *.lst && -f $1 ]] ; then
 	# assume backup_diskset_copy [path/]backupsetname_disknum.lst [ options ]
-	wrkdir=$(dirname "$1") ; if [[ ${wrkdir:0:1} != '/' ]] ; then wrkdir="$(pwd)/$wrkdir" ; fi
+	wrkdir=$(dirname "$1") ; if [[ ${wrkdir:0:1} != '/' ]] ; then wrkdir="$(pwd)/$wrkdir" ; fi ; wrkdir=${wrkdir%/.}
+	bdl="$wrkdir/$(basename "$1")" ; if [[ ! -f "$bdl" ]] ; then echo "Backup todo list $bdl not found - exit" ; exit 1 ; fi
 	name=$(basename "$1" | sed -e 's/_[0-9][0-9][0-9].lst$//')
 	dn=$(basename "$1" | sed -e 's/.*_\([0-9][0-9][0-9]\).lst$/\1/' -e 's/[0]*//')
-	shift
+	shift # we're done with $1
+	dsk=$(printf "%s_%03d" "$name" "$dn") # backup dir name is YYYYMMDD_NNN
 	opts=("$@")
 	if [[ ${opts[0]} == "dryrun" ]] ; then dryrun=y ; fi
+	#echo "$bdl#$bupdir#$wrkdir#$name#$dn#$dsk#${opts[@]}#" ; exit # debug print parameter setup
 else
 	echo "usage: $0 [pwdfile] backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
 	echo "this script will process the .lst 'todo' recipe for a given backup set disk. it will 'pull' the files" >&2
@@ -29,31 +35,30 @@ else
 	exit 1
 fi
 
-dsk=$(printf "%s_%03d" "$name" "$dn")
-#echo "$bupdir#$wrkdir#$name#$dn#$dsk#${opts[@]}#" ; exit
-
 if [[ -d "$bupdir/$dsk" ]] ; then
-	echo "INFO: $bupdir/$dsk exists - assuming it is the mounted backup disk $dsk"
+	echo "INFO: $bupdir/$dsk exists - assuming it is the backup target for $dsk and ready to go"
+	# if the target dir is already mounted, this script can also be run from the task manager (doesn't require user input for mount.ecryptfs in that case)
 else
 	echo "INFO: $bupdir/$dsk not found"
-	echo "Mounting $bupdir/@$dsk@ on $bupdir/$dsk"
-	mkdir -pv "$bupdir/@$dsk@"
-	mkdir -p  "$bupdir/$dsk"
-	if (( $(df -P | grep "$bupdir/$dsk" | wc -l) == 0 )) ; then
-		mount.ecryptfs "$bupdir/@$dsk@" "$bupdir/$dsk" -o rw,noauto,ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y
-		ls -l "$bupdir/$dsk"
-	else
-		echo "Target directory $bupdir/$dsk already mounted"
-		# if the target dir is already mounted, this script can also be run from the task manager (doesn't require user input in that case)
+	if [[ ! -d "$bupdir/@$dsk@" ]] ; then
+		echo "WARNING: $bupdir/@$dsk@ not found - creating and mounting a new encrypted directory $bupdir/@$dsk@ for $dsk"
+		mkdir -v "$bupdir/@$dsk@"
 	fi
+	echo "Mounting $bupdir/@$dsk@ on $bupdir/$dsk"
+	mkdir "$bupdir/$dsk"
+	mount.ecryptfs "$bupdir/@$dsk@" "$bupdir/$dsk" -o rw,noauto,ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y
+	ls -l "$bupdir/$dsk" # confirm the mount was successful by showing the contents - will show ECRYPTFS_FNEK_ENCRYPTED.* files if the passphrase was wrong
 fi
 if [[ ${opts[0]} = "mountonly" ]] ; then exit ; fi
 
-bdl="$wrkdir/$dsk.lst"
-if [[ ! -f "$bdl" ]] ; then echo "Backup todo list $bdl not found - exit" ; exit 1 ; fi
+# output files
+log="${bdl%.lst}.log" # log file (stdout)
+err="${bdl%.lst}.err" # error file (stderr)
+fst="${bdl%.lst}.fst" # fast disk scan result
+md5="${bdl%.lst}.md5" # md5 disk scan result
+
 MOVINGSTR="Moving and renaming files on"
 CLEANUPSTR="Cleanup of empty directories on"
-log="$wrkdir/$dsk.log"
 if [[ -n $dryrun ]] ; then
 	log=/dev/null # don't overwrite log file in dryrun (could be enabled if necessary)
 elif [[ -f $log ]] ; then
@@ -150,33 +155,33 @@ rm $flist
 # strip the $bupdir base path from the files listed so they start with $dsk/...
 df -B 1 "$bupdir/$dsk" | tee -a $log # log the final utilisation of the disk
 if [[ -n $dryrun ]] ; then
-	echo "Skipping verification of $bupdir/$dsk to $wrkdir/$dsk.[fst|md5] (dry run)" | tee -a $log
+	echo "Skipping verification of $bupdir/$dsk to .fst or .md5] (dry run)" | tee -a $log
 	# and don't unmount
 else
 	if [[ ${opts[0]} == md5 ]] ; then
 		# create an .md5 file listing
 		if [[ -z ${opts[1]} ]] ; then
 			# full md5 scan
-			echo "Verifying $dsk (save output in $wrkdir/$dsk.md5|err)" | tee -a $log
+			echo "Verifying $dsk (save output in $md5 and $err)" | tee -a $log
 			savepwd=$(pwd) ; cd "$bupdir/$dsk"
-			mkfilelist_md5 * > "$wrkdir/$dsk.md5" 2> "$wrkdir/$dsk.err"
+			mkfilelist_md5 * > "$md5" 2> "$err"
 			cd "$savepwd"
 		elif [[ -f ${opts[1]} ]] ; then
 			# incremental md5 scan using previous scan
 			prev=${opts[1]}
 			# prepend current path if $prev path is not absolute, to make it absolute and work when whe're cd-ing into $bupdir/$dsk
 			if [[ ${prev:0:1} != '/' ]] ; then prev="$(pwd)/$prev" ; fi
-			echo "Verifying $dsk (using previous scan $prev, save output in $wrkdir/$dsk.md5|err)" | tee -a $log
+			echo "Verifying $dsk (using previous scan $prev, save output in $md5 and $err)" | tee -a $log
 			savepwd=$(pwd) ; cd "$bupdir/$dsk"
-			mkfilelist_md5 -f $prev * > "$wrkdir/$dsk.md5" 2> "$wrkdir/$dsk.err"
+			mkfilelist_md5 -f $prev * > "$md5" 2> "$err"
 			cd "$savepwd"
 		else
 			echo "Error: wrong parameter ${opts[1]} - skipping md5sum verification" | tee -a $log
 		fi
 	else
 		# create an .fst file listing
-		echo "Fast scan of $dsk (save output in $wrkdir/$dsk.fst|err)" | tee -a $log
-		mkfilelist_fast "$bupdir/$dsk" | sed -e "s#\t$bupdir/$dsk/#\t#" > "$wrkdir/$dsk.fst" 2> "$wrkdir/$dsk.err"
+		echo "Fast scan of $dsk (save output in $fst and $err)" | tee -a $log
+		mkfilelist_fast "$bupdir/$dsk" | sed -e "s#\t$bupdir/$dsk/#\t#" > "$fst" 2> "$err"
 	fi
 #	echo "Unmounting $dsk"
 #	umount "$bupdir/$dsk"
