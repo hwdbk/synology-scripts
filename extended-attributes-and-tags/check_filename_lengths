@@ -10,6 +10,6 @@ while read i ; do
 		echo "${#j} $i"
 		found=y
 	fi
-done < <( find "$@" -type f ! -path "*/@eaDir/*" ) # | sort -n -k 1 # piping this to sort makes the perennial bash while/subshell/pipe question reappear, even when using < <(process substitution) !!
+done < <( find "$@" -type f ! -path "*/@eaDir/*" ) # | sort -n -k 1 # piping this to sort makes the perennial bash while/subshell/pipe/set-variable-in-loop problem reappear
 if [[ -n $found ]] ; then exit 1 ; fi
 #EOF
