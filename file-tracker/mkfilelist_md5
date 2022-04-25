@@ -8,6 +8,8 @@ if (( ${BASH_VERSINFO[0]} < 4 )) ; then
 fi
 declare -A md5
 
+if [[ $1 == -a ]] ; then all=-a ; filter=() ; shift ; else all= ; filter=( ! -path "*/#recycle/*" ! -path "*-/*" ) ; fi
+
 # fill md5 set, if possible
 if [[ $1 == "-f" ]] ; then
 	if [[ -f $2 ]] ; then
@@ -24,8 +26,6 @@ if [[ $1 == "-f" ]] ; then
 		echo "$0: wrong parameter: $1 $2" >&2 ; exit 1
 	fi
 fi
-
-if [[ $1 == -a ]] ; then all=-a ; filter=() ; shift ; else all= ; filter=( ! -path "*/#recycle/*" ! -path "*-/*" ) ; fi
 
 if (( $# == 0 )) ; then
 	echo "$(basename "$0"): nothing to scan" >&2
