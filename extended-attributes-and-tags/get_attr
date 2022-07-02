@@ -17,7 +17,7 @@
 #     (they are not always following each other). reverse-engineering learnt that the attribute key string is preceded by a string length byte and 10 index bytes
 #     comprising of 4 bytes file offset to the value data, 4 bytes length of the value data and two bytes 0x00.
 
-while [[ ${1:0:1} == '-' ]] ; do
+while [[ $1 == -* ]] ; do
 	if   [[ $1 == "-x" ]] ; then usehex=y
 	elif [[ $1 == "-q" ]] ; then quiet=y
 	else echo "error: unknown option $1" >&2 ; exit 1 ; fi
