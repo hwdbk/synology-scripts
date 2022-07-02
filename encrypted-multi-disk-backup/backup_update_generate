@@ -9,6 +9,8 @@ if (( $# < 2 )) || [[ $1 == "--help" ]] ; then
 	exit 1
 fi
 
+set -u # let script exit if an unsed variable is used (at runtime)
+
 # uses associative array: requires bash 4 or later
 if (( ${BASH_VERSINFO[0]} < 4 )) ; then
 	echo "error: $0 requires bash v4 or later" >&2
@@ -67,7 +69,7 @@ echo "Executed command: $0 $@" | tee $log
 tgt="$1" ; shift # this is the target snapshot of files we're trying to recreate on the backup set
 echo "Create backup set from file list: $tgt" | tee -a $log
 # rearrange input parameters so they are sorted by disk number
-fin=() ; while IFS=$'\t' read a b ; do fin+=("$b") ; done < <(for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -k 1)
+fin=() ; while IFS=$'\t' read a b ; do fin+=("$b") ; done < <(for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -t $'\t' -k 1)
 #echo "${fin[@]}"
 echo "Source disks to use (sorted by disknum):" | tee -a $log
 for i in "${fin[@]}" ; do d=$(basename "$i") ; d=${d%%.*} ; n=${d#*_} ; n=$((10#$n)) ; echo "$i (disk size $(_prettyprint ${DS[$n-1]}))" | tee -a $log ; done
@@ -148,32 +150,43 @@ for f in "${fin[@]}" ; do
 	done < <(grep "^[-*]" "$d" | cut -f 3) # select file size (f3) of only deleted and modififed files
 	# (re)add the new, updated size of the files that were modified (these will be rewritten) until the disk is full (note: modified files may be larger than their previous versions)
 	rm -f "$d.tmp" ; touch "$d.tmp"
-	exec 4<"$d"
-	while (( $sz < ${DS[$n-1]} )) && read -u 4 line ; do
+	exec 4<"$d" ; line= # read lines from this disk's todo list
+	while [[ -n $line ]] || read -u 4 line ; do # reuse the last line or read a new one
 		IFS=$'\t' read f1 f2 f3 f4 f5 f6 f7 <<< "$line" # we need f6 so also read f7 to properly delimit f6 (f7 spans till end of line)
 		if [[ $f1 == '*' ]] ; then
 			s=$(( (((f6 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ )) #$(_sizeondisk $f6)
-			((sz+=s))
-			((sw+=s))
+			newsize=$((sz+s))
+			if (( $newsize < ${DS[$n-1]} )) ; then
+				sz=$newsize
+				((sw+=s))
+			else
+				break
+				# note that this loop breaks BEFORE the disk size has been exceeded.
+				# the last read line is still held in $line and will be reused as the next read line
+			fi
 		fi
 		echo "$line" >> "$d.tmp" # copy these lines from $d to $d.tmp
+		line= # line has been used
+		# by clearing line, the loop is forced to read a new line; if not, it will reuse the line without the need to reread it
 	done
 	# at this point, the disk is full or there are no more '*' lines in $d left to read.
 	# read the remainder of '*' lines from fd 4. if any, these won't fit on the disk any more,
 	# so move them to the add list (these will be copied to a different disk) and remove them from $d
-	while read -u 4 line ; do
+	while [[ -n $line ]] || read -u 4 line ; do # reuse the last line or read a new one
 		IFS=$'\t' read f1 f2 f3 f4 f5 f6 f7 f8 <<< "$line"
 		if [[ $f1 == '*' ]] ; then
 			echo -e "-\t$f5\t$f6\t$f7\t$f8" >> "$d" # remove this file from disk $d
 			echo -e "+\t$f5\t$f6\t$f7\t$f8" >> "$add" # add this file to $add (i.e. to be placed on another disk's free space)
+			# note: this $line is filtered out (will not be copied to) $d.tmp
 		else
 			echo "$line" >> "$d.tmp" # copy the other lines from $d to $d.tmp (we use $line because these may be in various formats)
 		fi
+		line= # line has been used
 	done
 	exec 4<&-
 	mv "$d.tmp" "$d"
 	# now add new files to this disk until it is full
-	while [[ -n $addl ]] || read -u 3 addl ; do # use the previous addl OR read a new addl from fd 3
+	while [[ -n $addl ]] || read -u 3 addl ; do # reuse the previous addl or read a new addl from fd 3
 		IFS=$'\t' read a1 a2 a3 a4 a5 <<< "$addl" # a1 is '+'
 		s=$(( (((a3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ )) #$(_sizeondisk $a3)
 		newsize=$((sz+s))
@@ -181,13 +194,13 @@ for f in "${fin[@]}" ; do
 			sz=$newsize
 			((sw+=s))
 			echo -e "$a1\t$a2\t$a3\t$a4\t$a5" >> "$d"
-			addl=
-			# by clearing addl, the loop is forced to read a new line; if not, it will reuse the line without the need to reread it
 		else
 			break
 			# note that this loop breaks BEFORE the disk size has been exceeded.
 			# the last read line is still held in $addl and will flow to the next disk
 		fi
+		addl= # addl has been used
+		# by clearing addl, the loop is forced to read a new line; if not, it will reuse the line without the need to reread it
 	done
 	echo " -> $(basename "$d" .lst): $(_prettyprint $sz) in use, $(_prettyprint $((${DS[$n-1]}-sz))) free; $(_prettyprint $sw) to be written" | tee -a $log
 done
