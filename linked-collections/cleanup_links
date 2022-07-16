@@ -5,7 +5,7 @@
 # -n performs a dryrun (prints what the script will do, use before screwing up your file system unintentionally)
 # -d also cleans up any empty directories (i.e. all linked files in that directory have been deleted), but preserves tagged directories
 # -t moves files and directories to the indicated trash_dir
-# note: skips files without extension (such as unix scripts) but does include symlinks~
+# note: cleans up files and symlinks (to a file or a directory) but skips files with a link count of 1
 # note: does not assume that file_with_linked_filepaths_list is sorted - this script will sort this list because we use diff to match with the files found in dir
 #
 # check parameters
@@ -28,7 +28,7 @@ tmp=$(mktemp) # wipe list (candidates) for directories
 tmp1=$(mktemp) ; sort -u "$lst" > $tmp1
 tmp2=$(mktemp)
 
-find "${dir[@]}" \( -type f -o -type l -name "*~" \) ! -path "*/@eaDir/*" -print | sort > $tmp2
+find "${dir[@]}" \( -type f -o -type l \) ! -path "*/@eaDir/*" -print | sort > $tmp2
 if [[ -n $dryrun ]] ; then
 	echo "-- [ the below should not print '<' items; the '>' items will be deleted by the algorithm"
 	diff $tmp1 $tmp2 | grep '^[<>]'
@@ -44,10 +44,10 @@ diff $tmp1 $tmp2 | grep '^>' | sed -e 's/^> //' | while read i ; do
 		else
 			echo "moving $i to $trash"
 		fi
-	elif [[ -f $i ]] ; then
-		if [[ -z $dryrun ]] ; then rm_with_ea "$i" ; else echo "unlinking $i" ; fi
-	elif [[ -h $i ]] ; then
+	elif [[ -h $i ]] ; then # need to check for symlinks first, because a symlink also tests as a file (-f)
 		if [[ -z $dryrun ]] ; then rm -v "$i" ; else echo "removing symlink $i" ; fi
+	elif [[ -f $i ]] ; then # it is a file, but not a symlink
+		if [[ -z $dryrun ]] ; then rm_with_ea "$i" ; else echo "unlinking $i" ; fi
 	else
 		echo "can not remove $i: not found"
 	fi
