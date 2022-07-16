@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ $1 == -a ]] ; then filter=() ; shift ; else filter=( ! -path "*/#recycle/*" ! -path "*-/*" ) ; fi
+if [[ $1 == -a ]] ; then filter=() ; shift ; else filter=( ! -path "*/#recycle/*" \( ! -path "*-/*" -o -links 1 \) ) ; fi
 
 if (( $# == 0 )) ; then
 	echo "$(basename "$0"): nothing to scan" >&2
