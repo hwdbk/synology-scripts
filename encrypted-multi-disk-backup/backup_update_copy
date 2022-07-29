@@ -1,10 +1,15 @@
 #!/bin/bash
-# usage: backup_update_copy [path/]backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]
+# usage: backup_update_copy [pwdfile] [path/]backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]
 
 # set srcdir: the rsync source, which may be a remote rsync server, or a local path
-srcdir=yourrsyncaccount@yourserver:/volume1/NetBackup
+srcdir=rsync://yourrsyncaccount@yourserver/NetBackup
 # set bupdir: the directory where the unencrypted mounts of the backup disks will appear e.g. ($bupdir/20201118_001)
 bupdir="/volumeSATA1/satashare1-1"
+
+if [[ $1 != *.lst ]] ; then
+	if [[ -f $1 ]] ; then pwdfile=$1 ; shift ; chmod 000 "$pwdfile" # restrict access just in case one forgot
+	else echo "can not open rsync passwd file $1" >&2 ; exit 1 ; fi
+fi
 
 if [[ ! -d "$bupdir" ]] ; then echo "Backup target directory $bupdir not found - exit" ; exit 1 ; fi
 
@@ -20,13 +25,13 @@ if [[ $1 == *.lst && -f $1 ]] ; then
 	if [[ ${opts[0]} == "dryrun" ]] ; then dryrun=y ; fi
 	#echo "$bdl#$bupdir#$wrkdir#$name#$dn#$dsk#${opts[@]}#" ; exit # debug print parameter setup
 else
-	echo "usage: $0 backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
+	echo "usage: $0 [pwdfile] backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
 	echo "this script will process the .lst 'todo' recipe for a given backup set disk. it will 'pull' the files" >&2
 	echo "and write them on a local mounted file system (this is because files also can be deleted/moved/renamed)" >&2
 	echo "which is tricky to do through rsync alone." >&2
 	echo "note:  when mountonly or dryrun is specified, no log file is created and md5 verification is skipped" >&2
-	echo "note:  make sure you set up the ssh pre-shared public key if the files are fetched with rsync over the network;" >&2
-	echo "       for local (filesystem) rsync, this is not necessary. the copy method is hardcoded in the copy section; two examples are given" >&2
+	echo "note:  the pwdfile is used if the files are fetched with rsync over the network; for local (filesystem)" >&2
+	echo "       rsync, this is not necessary. the copy method is hardcoded in the copy section; two examples are given" >&2
 	exit 1
 fi
 
@@ -132,13 +137,18 @@ echo "Copying modified and new files to $dsk" | tee -a "$log"
 flist=$(mktemp)
 grep -P '^\*' "$bdl" | cut -f 8 >  $flist # the modified files
 grep -P '^\+' "$bdl" | cut -f 5 >> $flist # the new files
+if [[ -z $pwdfile ]] ; then
+	# interactive mode
+	tmp=$(mktemp) ; chmod 000 $tmp ; echo -n "Password: " ; read -s pwd ; echo "$pwd" > $tmp ; pwdfile=$tmp
+fi
 if [[ -n $dryrun ]] ; then
 	rsyncopts=-avn
 else
 	rsyncopts=-av
 fi
 #rsync $rsyncopts --files-from="$flist" --relative --dirs / "$bupdir/$dsk" 2>> "$err" | tee -a "$log" # use rsync to copy from and to local filesystem
-rsync $rsyncopts -W -e ssh --files-from="$flist" --relative --dirs --copy-dirlinks --inplace "$srcdir" "$bupdir/$dsk" 2>> "$err" | tee -a "$log" # use rsync to read files from remote server and store on local file system
+rsync $rsyncopts -W --files-from="$flist" --relative --dirs --copy-dirlinks --inplace --password-file="$pwdfile" "$srcdir" "$bupdir/$dsk" 2>> "$err" | tee -a "$log" # use rsync to read files from remote server and store on local file system
+if [[ -n $tmp ]] ; then rm $tmp ; fi # delete pwdfile
 rm $flist
 
 # re-read the disk by calculating the md5 check sums and register the moddate and size
@@ -154,14 +164,18 @@ else
 		if [[ -z ${opts[1]} ]] ; then
 			# full md5 scan
 			echo "Verifying $dsk (save output in $md5 and $err)" | tee -a "$log"
-			( cd "$bupdir/$dsk" ; mkfilelist_md5 * > "$md5" 2>> "$err" )
+			savepwd=$(pwd) ; cd "$bupdir/$dsk"
+			mkfilelist_md5 * > "$md5" 2>> "$err"
+			cd "$savepwd"
 		elif [[ -f ${opts[1]} ]] ; then
 			# incremental md5 scan using previous scan
 			prev=${opts[1]}
 			# prepend current path if $prev path is not absolute, to make it absolute and work when whe're cd-ing into $bupdir/$dsk
 			if [[ ${prev:0:1} != '/' ]] ; then prev="$(pwd)/$prev" ; fi
 			echo "Verifying $dsk (using previous scan $prev, save output in "$md5" and $err)" | tee -a "$log"
-			( cd "$bupdir/$dsk" ; mkfilelist_md5 -f $prev * > "$md5" 2>> "$err" )
+			savepwd=$(pwd) ; cd "$bupdir/$dsk"
+			mkfilelist_md5 -f $prev * > "$md5" 2>> "$err"
+			cd "$savepwd"
 		else
 			echo "Error: wrong parameter ${opts[1]} - skipping md5sum verification" | tee -a "$log"
 		fi
