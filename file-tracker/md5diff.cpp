@@ -28,18 +28,24 @@ inline bool        UFExists   (const std::string& path) { struct stat buffer; re
 static bool sUseModDate = true; // use modification date in comparisons?
 static bool sUseNano    = true; // use nanosecond precision in moddate comparison? (only works if *all* moddates are specified in nanosecond precision) (requires sUseModDate true). start with true, can be reset while reading input files
 static bool sUseMD5     = true; // use the md5sum. if false, use the moddate and file size instead (requires sUseModDate true). start with true, can be reset while reading input files (of .fst files, for instance)
+static bool sUseTable   = false; // if true, print output in a fixed-format table output style
 
-class BupInfo
+class FileInfo
+{
+	public:
+		std::string moddate;
+		std::string fsize;
+		std::string md5sum;
+		std::string path;    // full path (directory/filename.ext)
+};
+
+class BupInfo : public FileInfo
 {
 	public:
 //		std::string bupdate;
-		std::string moddate;
-		std::string fsize;
 //		std::string inode; std::string diskid;
-		std::string md5sum;
-		std::string path;    // full path (directory/filename.ext)
 		std::string fname;   // filename.ext only, calculated field; used in comparisons and would dramatically slow down program if calculated inline
-		std::string rhsinfo; // field with rhs info to facilitate printout of moved, renamed and modified items (the part after the ->)
+		FileInfo    rhsinfo; // field with rhs info to facilitate printout of moved, renamed and modified items (the part after the ->)
 	private:
 		std::string mdd_fsz; // combined moddate & fsize, calculated field; used in comparisons and would dramatically slow down program if calculated inline
 	public:
@@ -64,14 +70,13 @@ struct lt_md5sum_path          { bool operator()(const BupInfo& lhs, const BupIn
 struct lt_md5sum_moddate       { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return sUseModDate ? LT2(lhs.md5equiv(),lhs.moddate,           rhs.md5equiv(),rhs.moddate)           : LT1(lhs.md5sum,           rhs.md5sum);           } };
 struct lt_md5sum_fname_moddate { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return sUseModDate ? LT3(lhs.md5equiv(),lhs.fname,lhs.moddate, rhs.md5equiv(),rhs.fname,rhs.moddate) : LT2(lhs.md5sum,lhs.fname, rhs.md5sum,rhs.fname); } };
 
-std::ostream& operator<< (std::ostream& strm, const BupInfo& info)
+std::ostream& operator<< (std::ostream& strm, const FileInfo& info)
 {
 	strm << info.moddate << TAB << info.fsize << TAB << info.md5sum << TAB << info.path;
 	return strm;
 }
 
 #define copy_list(A, src, dst) { for(A::iterator n = src.begin(); n != src.end(); ++n) dst.insert(*n); }
-#define print_list(A, lst, pfx) { for(A::iterator n = lst.begin(); n != lst.end(); ++n) std::cout << pfx << *n << LF; }
 
 typedef std::set     <BupInfo, lt_md5sum_path>          BupInfoList;
 	// file list sorted by md5sum+path (unique). if only md5sum was used, the list would not be
@@ -157,6 +162,10 @@ int main(int argc, char** argv)
 			useNano = true;
 			shift(argc,argv,i);
 		}
+		else if(std::string(argv[i]) == "-table") {
+			sUseTable = true;
+			shift(argc,argv,i);
+		}
 		else if(std::string(argv[i]) == "-r") {
 			reverse = true;
 			shift(argc,argv,i);
@@ -180,11 +189,12 @@ int main(int argc, char** argv)
 		error = true;
 	
 	if(error) {
-		std::cerr << "usage: md5diff [-nodate|-nomd5] [-nano] [-r] file1[.md5|.fst] file2[.md5|.fst]" << LF;
+		std::cerr << "usage: md5diff [-nodate|-nomd5] [-nano] [-table] [-r] file1[.md5|.fst] file2[.md5|.fst]" << LF;
 		std::cerr << "options:" << LF;
 		std::cerr << "  -nodate: ignore modification date fields (use md5sum only)" << LF;
 		std::cerr << "  -nomd5: ignore md5sum checksum fields (use modification date and file size only)" << LF;
 		std::cerr << "  -nano: use nanosecond precision on modification dates (if present)" << LF;
+		std::cerr << "  -table: print output in a fixed-format table" << LF;
 		std::cerr << "  -r: reverse (swap) file1 and file2" << LF;
 		std::cerr << "input:" << LF;
 		std::cerr << "  reads tab-separated files (file1 and file2):" << LF;
@@ -208,6 +218,9 @@ int main(int argc, char** argv)
 		std::cerr << "  format:             *<tab>moddate<tab>size<tab>-><tab>newmoddate<tab>newsize<tab>[newmd5sum|-]<tab>path<lf>" << LF;
 		std::cerr << "  lines starting with +: files that were added (new files)" << LF;
 		std::cerr << "  format:             +<tab>moddate<tab>size<tab>[md5sum|-]<tab>path<lf>" << LF;
+		std::cerr << "table output (stdout):" << LF;
+		std::cerr << "  tab-separated list of changes found when going from the state in file1 to file2:" << LF;
+		std::cerr << "  format:             [-=>*+]<tab>moddate1<tab>size1<tab>md5sum1<tab>path1<tab>moddate2<tab>size2<tab>md5sum2<tab>path2" << LF;
 		return 1;
 	}
 	
@@ -325,7 +338,7 @@ int main(int argc, char** argv)
 		for(BupInfoList::iterator n = srcR.begin(); n != srcR.end(); ++n) {
 			BupInfoMoved::iterator f = movedL.find(*n);
 			if(f != movedL.end()) { // found item with matching md5sum and path
-				BupInfo info = *f; info.rhsinfo = n->path; // store rhs path in rhsinfo
+				BupInfo info = *f; info.rhsinfo = *n; // store rhs path in rhsinfo
 				moved.insert(info);
 				movedL.erase(f);
 			}
@@ -334,7 +347,10 @@ int main(int argc, char** argv)
 		}
 		std::cout << LF << "# Moved " << moved.size() << " items between " << fnameL << " and " << fnameR << LF;
 		for(BupInfoPrint::iterator n = moved.begin(); n != moved.end(); ++n)
-			std::cout << "=\t" << *n << "\t->\t" << n->rhsinfo << LF;
+			if(sUseTable)
+				std::cout << "=\t" << *n << "\t" << n->rhsinfo << LF;
+			else
+				std::cout << "=\t" << *n << "\t->\t" << n->rhsinfo.path << LF;
 	}
 	
 	// now find the items that have been renamed (same dir or from one place to another)
@@ -347,7 +363,7 @@ int main(int argc, char** argv)
 		for(BupInfoMoved::iterator n = srcR.begin(); n != srcR.end(); ++n) {
 			BupInfoRenamed::iterator f = renamedL.find(*n);
 			if(f != renamedL.end()) { // found item with matching md5sum and path
-				BupInfo info = *f; info.rhsinfo = n->path; // store rhs path in rhsinfo
+				BupInfo info = *f; info.rhsinfo = *n; // store rhs path in rhsinfo
 				renamed.insert(info);
 				renamedL.erase(f);
 			}
@@ -356,8 +372,10 @@ int main(int argc, char** argv)
 		}
 		std::cout << LF << "# Renamed " << renamed.size() << " items between " << fnameL << " and " << fnameR << LF;
 		for(BupInfoPrint::iterator n = renamed.begin(); n != renamed.end(); ++n)
-//			std::cout << ">\t" << *n << "\t->\t" << (UFBaseDir(n->path) == UFBaseDir(n->rhsinfo) ? UFFileName(n->rhsinfo) : n->rhsinfo) << LF; // skip printing the directory if it hasn't changed
-			std::cout << ">\t" << *n << "\t->\t" << n->rhsinfo << LF;
+			if(sUseTable)
+				std::cout << ">\t" << *n << "\t" << n->rhsinfo << LF;
+			else
+				std::cout << ">\t" << *n << "\t->\t" << n->rhsinfo.path << LF;
 	}
 	
 	// now find the items that have been modified
@@ -375,7 +393,8 @@ int main(int argc, char** argv)
 		for(BupInfoMoved::iterator n = srcR.begin(); n != srcR.end(); ++n) {
 			BupInfoRenamed::iterator f = modifiedL.find(*n);
 			if(f != modifiedL.end()) { // found item with matching path
-				BupInfo info = *f; info.rhsinfo = n->moddate + TAB + n->fsize + TAB + n->md5sum + TAB + n->path; // store rhs info for printout
+				//BupInfo info = *f; info.rhsinfo = n->moddate + TAB + n->fsize + TAB + n->md5sum + TAB + n->path; // store rhs info for printout
+				BupInfo info = *f; info.rhsinfo = *n; // store rhs info for printout
 				modified.insert(info);
 				modifiedL.erase(f);
 			}
@@ -384,7 +403,10 @@ int main(int argc, char** argv)
 		}
 		std::cout << LF << "# Modified " << modified.size() << " items between " << fnameL << " and " << fnameR << LF;
 		for(BupInfoPrint::iterator n = modified.begin(); n != modified.end(); ++n)
-			std::cout << "*\t" << n->moddate << TAB << n->fsize << "\t->\t" << n->rhsinfo << LF;
+			if(sUseTable)
+				std::cout << "*\t" << *n << "\t" << n->rhsinfo << LF;
+			else
+				std::cout << "*\t" << n->moddate << TAB << n->fsize << "\t->\t" << n->rhsinfo << LF;
 	}
 	
 	// now sort the remaining trees by file path
@@ -393,9 +415,17 @@ int main(int argc, char** argv)
 	
 	// print result
 	std::cout << LF << "# Deleted " << sortL.size() << " items since " << fnameL << LF;
-	print_list(BupInfoPrint, sortL, "-\t");
+	for(BupInfoPrint::iterator n = sortL.begin(); n != sortL.end(); ++n)
+		if(sUseTable)
+			std::cout << "-\t" << *n << "\t-\t-\t-\t-" << LF;
+		else
+			std::cout << "-\t" << *n << LF;
 	std::cout << LF << "# Added " << sortR.size() << " items in " << fnameR << LF;
-	print_list(BupInfoPrint, sortR, "+\t");
+	for(BupInfoPrint::iterator n = sortR.begin(); n != sortR.end(); ++n)
+		if(sUseTable)
+			std::cout << "+\t-\t-\t-\t-\t" << *n << LF;
+		else
+			std::cout << "+\t" << *n << LF;
 	
 	return 0;
 }
