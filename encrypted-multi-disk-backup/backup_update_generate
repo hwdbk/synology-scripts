@@ -1,10 +1,14 @@
 #!/bin/bash
 
-if (( $# < 2 )) || [[ $1 == "--help" ]] ; then
-	echo "usage: backup_update_generate --help" >&2
-	echo "       backup_update_generate filelist.[fst|md5] backup_disksetname_disk1.[fst|md5][.locked] [backup_disksetname_disk2.[fst|md5][.locked] ...]" >&2
-	echo "       generated backup recipe files are written in the current directory" >&2
-	echo "note:  make sure that filelist.[fst|md5] uses the same (UTF-8) encoding as the backup_disksetname_diskN file(s)" >&2
+if (( $# < 2 )) || [[ $1 == -h ]] ; then
+	echo "usage: backup_update_generate -h" >&2
+	echo "           prints this usage help" >&2
+	echo "       backup_update_generate [-d outdir] [-l label] filelist.[fst|md5] backup_diskset_label_001.[fst|md5][.locked] [backup_diskset_label_002.[fst|md5][.locked] ...]" >&2
+	echo "           generates backup recipe .lst files for use by backup_update_copy" >&2
+	echo "           this will bring the backup from the state in backup_diskset_label_NNN.[fst|md5] to the source fileset defined in filelist.[fst|md5]" >&2
+	echo "           output files are written in the current dir or in outdir (when specified with -d)" >&2
+	echo "           output files have the prefix YYYYMMDD (today's date) or a backup_diskset_label (when specified with -l)" >&2
+	echo "note:  make sure that filelist.[fst|md5] uses the same (UTF-8) encoding as the backup_diskset_label_NNN file(s)" >&2
 	echo "note:  the script depends on md5diff.cpp as a compiled binary to map out the differences since last backup" >&2
 	exit 1
 fi
@@ -17,15 +21,12 @@ if (( ${BASH_VERSINFO[0]} < 4 )) ; then
 	exit 1
 fi
 
-bupdir="/volumeSATA1/satashare1-1" ; if [[ ! -d $bupdir ]] ; then bupdir="/volume1/NetBackup" ; fi # the directory in which the YYYYMMDD_nnn backup directories will be found
-
-TODAY=$(date +%Y%m%d)
 GB=$((1000**3))
 TB=$((1000**4))
 GiB=$((1024**3))
 TiB=$((1024**4))
-EXT4ALLOCBLKSZ=4096
-ECRYPTFSHEADER=8192
+EXT4ALLOCBLKSZ=4096 # files are allocated in multiples of 4k blocks
+ECRYPTFSHEADER=8192 # ecryptfs files are stored with an 8k header, so even an empty files takes up 8k disk space
 
 # disk size to use - make sure to get the true free space on an empty, formatted disk, not just 3*$TB, for instance
 # use df -B 1 to get the free space of a fresh formatted partition; then subtract some safe margin
@@ -35,9 +36,12 @@ DS5T=$((4954812403712 - 5*GB))
 DS8T=$((7866968109056 - 6*GB))
 DS=( $DS3T $DS3T $DS3T $((DS3T - 100*GiB)) ) # 4 disks of 3T + reserve some extra free space on the last
 
+OUTDIR=. ; if [[ $1 == -d && -d $2 ]] ; then OUTDIR=$2 ; shift 2 ; fi
+LABEL=$(date +%Y%m%d) ; if [[ $1 == -l && -n $2 ]] ; then LABEL=$2 ; shift 2 ; fi
+
 _newdiskname() {
 	local d=$(basename "$1") ; d=${d%%.*} # basename of $1 without extension(s)
-	local n=${TODAY}_${d#*_} # use today (YYYYMMDD) and reuse the disk number _NNN from $d
+	local n=${LABEL}_${d##*_} # use today (YYYYMMDD) and reuse the disk number _NNN from $d
 	echo "$n"
 }
 
@@ -59,24 +63,24 @@ _prettyprint() {
 	echo "$(printf "%10s MB" ${r#,})" # strip leading comma and right align
 }
 
-src=$TODAY.allsrcdisks.md5
-srp=$TODAY.allsrcpaths.md5
-dff=$TODAY.md5diff.log
-add=$TODAY.add.lst
-log="$TODAY.log"
-echo "Executed command: $0 $@" | tee $log
+src="$OUTDIR/$LABEL.allsrcdisks.md5"
+dff="$OUTDIR/$LABEL.md5diff.log"
+add="$OUTDIR/$LABEL.add.lst"
+log="$OUTDIR/$LABEL.log"
+echo "Executed command: $0 $@" | tee "$log"
 
 tgt="$1" ; shift # this is the target snapshot of files we're trying to recreate on the backup set
-echo "Create backup set from file list: $tgt" | tee -a $log
+echo "Create backup set from file list: $tgt" | tee -a "$log"
 # rearrange input parameters so they are sorted by disk number
 fin=() ; while IFS=$'\t' read a b ; do fin+=("$b") ; done < <(for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -t $'\t' -k 1)
 #echo "${fin[@]}"
-echo "Source disks to use (sorted by disknum):" | tee -a $log
-for i in "${fin[@]}" ; do d=$(basename "$i") ; d=${d%%.*} ; n=${d#*_} ; n=$((10#$n)) ; echo "$i (disk size $(_prettyprint ${DS[$n-1]}))" | tee -a $log ; done
-echo "Processing differences" | tee -a $log
+echo "Source disks to use (sorted by disknum):" | tee -a "$log"
+for i in "${fin[@]}" ; do d=$(basename "$i") ; d=${d%%.*} ; n=${d#*_} ; n=$((10#$n)) ; echo "$i (disk size $(_prettyprint ${DS[$n-1]}))" | tee -a "$log" ; done
+echo "Processing differences" | tee -a "$log"
 cat "${fin[@]}" > "$src" # create full file list of the existing backup (the starting point from which to make the new backup). note the paths don't contain the disk name and can therefore be compared to the paths in $tgt
 md5diff "$src" "$tgt" > "$dff" # create the differences file. $src and $tgt should start with the same base paths, so modified files are tracked correctly
-grep '^#' "$dff" | tee -a $log # save the comment lines in the log file which is a nice digest of the changes among the files found between the backup and the current situation
+grep '^#' "$dff" | tee -a "$log" # save the comment lines in the log file which is a nice digest of the changes among the files found between the backup and the current situation
+unset src
 
 # in the md5diff output:
 # lines starting with -: deleted files (wipe list)
@@ -90,17 +94,17 @@ grep '^#' "$dff" | tee -a $log # save the comment lines in the log file which is
 # read the source disk set in an associative array so we can quickly find on which disk a certain file is currently located (much faster than grep)
 # PS> strip subsecond moddate part because it's not used/needed in md5diff (no -nano, use 1-second match accuracy reducing false positive modifications)
 echo -n "Reading source disks contents:"
-declare -A src;
+declare -A src
 for f in "${fin[@]}" ; do echo -n " $(basename "$f")" ; while IFS=$'\t' read a b c d ; do a=${a:0:15} ; src+=(["$a|$b|$d"]="$f") ; done < "$f" ; done
 echo " - done"
 
 # cleanup previous invocation results because we use >> below
-for f in "${fin[@]}" ; do d="$(_newdiskname "$f").lst" ; rm -f "$d" ; touch "$d" ; done
-echo "Collecting files that were added (new files)" | tee -a $log
+for f in "${fin[@]}" ; do d="$OUTDIR/$(_newdiskname "$f").lst" ; rm -f "$d" ; touch "$d" ; done
+echo "Collecting files that were added (new files)" | tee -a "$log"
 # first category: list of files to add (new files - at this point not known yet on which disk these will be written: start with a global list)
 grep "^+" "$dff" > "$add"
 
-echo "Collecting deleted, moved, renamed and modified files and assigning the changes to the disk where the files in question are located" | tee -a $log
+echo "Collecting deleted, moved, renamed and modified files and assigning the changes to the disk where the files in question are located" | tee -a "$log"
 # collect the lists of other commands to do: delete, move, rename & modify, and assign operation to the right disk
 #   f1   f2      f3      f4           f5        f6        f7        f8
 #   -  moddate  size  [md5sum|-]     path
@@ -115,35 +119,35 @@ while read line ; do # read the md5diff output
 		if [[ -z $f ]] ; then
 			echo "ERROR: $f2 $f3 $f5 not found in source disks" >&2
 		elif [[ ${f##*.} != "locked" ]] ; then # we will not delete, move or rename files on a locked disk - these will effectively be skipped
-			echo "$line" >> "$(_newdiskname "$f").lst"
+			echo "$line" >> "$OUTDIR/$(_newdiskname "$f").lst"
 		fi
 	elif [[ $f1 == '*' ]] ; then # parse 'modified'
 		f=${src["$f2|$f3|$f8"]}
 		if [[ -z $f ]] ; then
 			echo "ERROR: $f2 $f3 $f8 not found in source disks" >&2
 		elif [[ ${f##*.} != "locked" ]] ; then
-			echo "$line" >> "$(_newdiskname "$f").lst" # modified files will be rewritten on the same disk (if the disk is not marked as locked)
+			echo "$line" >> "$OUTDIR/$(_newdiskname "$f").lst" # modified files will be rewritten on the same disk (if the disk is not marked as locked)
 		else
 			echo -e "+\t$f5\t$f6\t$f7\t$f8" >> "$add" # if the disk is marked as locked, add the modified file to the add list instead (i.e. to be placed on another disk's free space)
 		fi
 	fi
 done < "$dff"
 
-echo "Manage free space on each disk for the modififed and new (added) files" | tee -a $log
+echo "Manage free space on each disk for the modififed and new (added) files" | tee -a "$log"
 
 # now manage the free space on each disk to see how many of the modified and new files can be written
 exec 3<"$add" ; addl= # read lines from $add in one continuous flow, spanning multiple disks if necessary
 for f in "${fin[@]}" ; do
 	if [[ ${f##*.} == "locked" ]] ; then echo "${f%.*.locked}: disk is marked as locked - skipping" ; continue ; fi # skip locked disks
-	d=$(_newdiskname "$f").lst # $d is the todo list for this disk
-	n=$(basename "$d" .lst) ; n=${n#*_} ; n=$((10#$n)) # the disk number; note the $ because the string $n (e.g. 017) needs to be converted to a number (17 in this example)
+	d="$OUTDIR/$(_newdiskname "$f").lst" # $d is the todo list for this disk
+	n=$(basename "$d" .lst) ; n=${n##*_} ; n=$((10#$n)) # the disk number; note the $ because the string $n (e.g. 017) needs to be converted to a number (17 in this example)
 	sz=0 # size on disk tracker
 	sw=0 # size to be written tracker
 	# count the files that are currently listed as being on the disk
 	while read f2 ; do
 		((sz+=(((f2 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ )) #$(_sizeondisk $f2)))
 	done < <(cut -f 2 "$f") # select file size (f2) of all lines
-	echo -n "${f%.*}: $(_prettyprint $sz) in use, $(_prettyprint $((${DS[$n-1]}-sz))) free" | tee -a $log
+	echo -n "${f%.*}: $(_prettyprint $sz) in use, $(_prettyprint $((${DS[$n-1]}-sz))) free" | tee -a "$log"
 	# subtract the files that will be deleted and those that were modified (these will be rewritten)
 	while read f3 ; do
 		((sz-=(((f3 + ECRYPTFSHEADER)/EXT4ALLOCBLKSZ)+1)*EXT4ALLOCBLKSZ )) #$(_sizeondisk $f3)))
@@ -202,25 +206,25 @@ for f in "${fin[@]}" ; do
 		addl= # addl has been used
 		# by clearing addl, the loop is forced to read a new line; if not, it will reuse the line without the need to reread it
 	done
-	echo " -> $(basename "$d" .lst): $(_prettyprint $sz) in use, $(_prettyprint $((${DS[$n-1]}-sz))) free; $(_prettyprint $sw) to be written" | tee -a $log
+	echo " -> $(basename "$d" .lst): $(_prettyprint $sz) in use, $(_prettyprint $((${DS[$n-1]}-sz))) free; $(_prettyprint $sw) to be written" | tee -a "$log"
 done
-echo -n "LEFTOVER LINES: " | tee -a $log ; echo >> $log
+echo -n "LEFTOVER LINES: " | tee -a "$log" ; echo >> "$log"
 # todo: write these 'add' lines to new disks.lst files. for the time being, just add an extra empty backupset_nnn.[fst|md5] input file
 #       to the input list until all lines can be placed on disks and count the additional space needed for this.
 any=
 while [[ -n $addl ]] || read -u 3 addl ; do
-	echo "$addl" >> $log # to log, not on console
+	echo "$addl" >> "$log" # to log, not on console
 	addl=
 	any=y
 done
 exec 3<&-
 if [[ -n $any ]] ; then # some leftover lines were logged
-	echo "Some files could not be allocated to the available disks. $(_prettyprint $(grep '^+' $log | countsize_filelist)) additional space needed." | tee -a $log
-	echo "See log file for list of LEFTOVER LINES. These start with a '+' (grep ^+ $log) and if they fit on a disk, copy them to an extra backupdisk_$(printf "%03d" $((n+1))).lst todo list." | tee -a $log
-	echo "Or, add (one or more) empty backupdisk_$(printf "%03d" $((n+1)))[...].[fst|md5] file(s) in the input set, set the disks' free space in the DS array and rerun the script." | tee -a $log
-	echo "The added disks don't even have to be empty. For instance, if you supply the .[md5|fst] file, the contents (if part of the same file set) will be reused/remain which can save copy time." | tee -a $log
+	echo "Some files could not be allocated to the available disks. $(_prettyprint $(grep '^+' "$log" | countsize_filelist)) additional space needed." | tee -a "$log"
+	echo "See log file for list of LEFTOVER LINES. These start with a '+' (grep ^+ $log) and if they fit on a disk, copy them to an extra backupdisk_$(printf "%03d" $((n+1))).lst todo list." | tee -a "$log"
+	echo "Or, add (one or more) empty backupdisk_$(printf "%03d" $((n+1)))[...].[fst|md5] file(s) in the input set, set the disks' free space in the DS array and rerun the script." | tee -a "$log"
+	echo "The added disks don't even have to be empty. For instance, if you supply the .[md5|fst] file, the contents (if part of the same file set) will be reused/remain which can save copy time." | tee -a "$log"
 else
-	echo "none" | tee -a $log
+	echo "none" | tee -a "$log"
 fi
 
 #EOF
