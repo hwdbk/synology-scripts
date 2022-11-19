@@ -8,7 +8,7 @@ if (( ${BASH_VERSINFO[0]} < 4 )) ; then
 fi
 declare -A md5
 
-if [[ $1 == -a ]] ; then all=-a ; filter=() ; shift ; else all= ; filter=( ! -path "*/#recycle/*" \( ! -path "*-/*" -o -links 1 \) ) ; fi
+if [[ $1 == -a ]] ; then all=-a ; filter=() ; shift ; else all= ; filter=( ! -path "*/#recycle/*" ! -path "*~/*" \( ! -path "*-/*" -o -links 1 \) ) ; fi
 
 # fill md5 set, if possible
 if [[ $1 == "-f" ]] ; then
