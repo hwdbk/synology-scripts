@@ -40,7 +40,7 @@ fi
 # check input files/directories
 for i in "$@" ; do
 	if [[ ! -e $i ]] ; then
-		echo "$0: $i: wrong parameter (not a directory or file)" >&2 ; exit 1
+		echo "ERROR: $i: wrong parameter (not a directory or file)" >&2 ; exit 1
 	fi
 done
 
@@ -53,7 +53,7 @@ sprev=0 # file size of files found in previous scan tracker
 # parse GNU find -printf format (on Mac OS X, you must use gfind from macports or brew (/opt/local/bin/gfind, not /usr/bin/find)
 while IFS=$'\t' read a b f ; do
 	if [[ -d $f ]] ; then
-		if [[ $f == *- && -z $all ]] ; then echo "skipping $f/" >&2 ; fi
+		if [[ $f == *[-~] && -z $all ]] ; then echo "INFO: skipping $f/" >&2 ; fi
 		continue; # nothing else to report for directories
 	fi
 	((nscan++)) ; ((sscan+=b)) # update stats for totals
@@ -66,10 +66,10 @@ while IFS=$'\t' read a b f ; do
 		fi
 	fi
 	if [[ -z $c ]] ; then # no previous value for md5sum used - we need to calculate
-		if [[ -n $prevmd5 ]] ; then echo "$0: info: calculating md5sum for $f" >&2 ; fi
-		c=$(md5sum "$f" | sed -e "s/  /\t/")
+		if [[ -n $prevmd5 ]] ; then echo "INFO: calculating md5sum for $f" >&2 ; fi
+		c=$(md5sum "$f" | cut -d ' ' -f 1)
 	fi
-	echo -e "${a:0:25}\t$b\t$c"
+	if [[ -n $c ]] ; then echo -e "${a:0:25}\t$b\t$c\t$f" ; else echo "WARNING: there was an error calculating md5sum for $f" >&2 ; fi
 done < <(find "$@" \( -type f -o -type d \) "${filter[@]}" ! -path "*/@eaDir/*" ! -path "*/.AppleDB/*" ! -name ".DS_Store" -printf "%TY%Tm%Td_%TH%TM%TS\t%s\t%p\n" | sort -t $'\t' -k 3 )
 
 # print stats
