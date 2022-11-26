@@ -64,7 +64,7 @@ _prettyprint() {
 }
 
 src="$OUTDIR/$LABEL.allsrcdisks.md5"
-dff="$OUTDIR/$LABEL.md5diff.log"
+dff="$OUTDIR/$LABEL.in.diff"
 add="$OUTDIR/$LABEL.add.lst"
 log="$OUTDIR/$LABEL.log"
 echo "Executed command: $0 $@" | tee "$log"
@@ -75,7 +75,7 @@ echo "Create backup set from file list: $tgt" | tee -a "$log"
 fin=() ; while IFS=$'\t' read a b ; do fin+=("$b") ; done < <(for i in "$@" ; do echo -e "${i##*_}\t$i" ; done | sort -t $'\t' -k 1)
 #echo "${fin[@]}"
 echo "Source disks to use (sorted by disknum):" | tee -a "$log"
-for i in "${fin[@]}" ; do d=$(basename "$i") ; d=${d%%.*} ; n=${d#*_} ; n=$((10#$n)) ; echo "$i (disk size $(_prettyprint ${DS[$n-1]}))" | tee -a "$log" ; done
+for i in "${fin[@]}" ; do d=$(basename "$i") ; d=${d%%.*} ; n=${d##*_} ; n=$((10#$n)) ; echo "$i (disk size $(_prettyprint ${DS[$n-1]}))" | tee -a "$log" ; done
 echo "Processing differences" | tee -a "$log"
 cat "${fin[@]}" > "$src" # create full file list of the existing backup (the starting point from which to make the new backup). note the paths don't contain the disk name and can therefore be compared to the paths in $tgt
 md5diff "$src" "$tgt" > "$dff" # create the differences file. $src and $tgt should start with the same base paths, so modified files are tracked correctly
