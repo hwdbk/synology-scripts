@@ -8,7 +8,7 @@ srcdir=yourrsyncaccount@yourserver:/volume1/NetBackup # use this form for rsync 
 # set bupdir: the directory where the unencrypted mounts of the backup disks will appear e.g. ($bupdir/20201118_001)
 bupdir="/volumeSATA1/satashare1-1"
 
-if [[ $1 != *.lst ]] ; then
+if (( $# > 0 )) && [[ $1 != *.lst ]] ; then
 	if [[ -f $1 ]] ; then pwdfile=$1 ; shift ; chmod 000 "$pwdfile" # restrict access just in case one forgot
 	else echo "can not open rsync passwd file $1" >&2 ; exit 1 ; fi
 fi
@@ -36,7 +36,7 @@ else
 	echo "       if no pwdfile is used and files need to be fetched over the network, rsync will prompt for a password." >&2
 	echo "       or make sure you set up the ssh pre-shared public key for rsync over ssh authentication." >&2
 	echo "       for local (filesystem) rsync, authentication is not necessary." >&2
-	echo "       the copy method is hardcoded in the copy section; two examples are given." >&2
+	echo "       the copy method is hardcoded in the copy section; examples are given to adapt to one's needs." >&2
 	exit 1
 fi
 
@@ -123,8 +123,8 @@ fi
 
 # cleanup any trailing empty directories
 if [[ -n $dryrun ]] ; then
-	echo "Skipping empty directory cleanup (in dry run, the relevant directories are not yet emptied)" | tee -a "$log"
-	sort -u $dlist | while read f ; do echo "Will (try to) remove directory: $f" ; done | tee -a log
+	echo "Skipping empty directory cleanup (in dry run, the relevant directories are not emptied and not removed)" | tee -a "$log"
+	sort -u $dlist | while read f ; do echo "Will (try to) remove directory: $f" ; done | tee -a "$log"
 else
 	echo "$CLEANUPSTR $dsk" | tee -a "$log"
 #	find "$bupdir/$dsk" -depth -mindepth 1 -type d -empty -exec rmdir {} \; 2>> "$err" # no output to log or stdout, only stderr
