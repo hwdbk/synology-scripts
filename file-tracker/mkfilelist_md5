@@ -61,7 +61,7 @@ while IFS=$'\t' read a b f ; do
 	if [[ -n $prevmd5 ]] ; then
 		if [[ -n $nano ]] ; then c=${md5["${a:0:25}|$b|$f"]} ; else c=${md5["${a:0:15}|$b|$f"]} ; fi
 		if [[ -n $c ]] ; then
-			c="$c-\t$f" # tag reused md5sum with (another) trailing dash
+			c="$c-" # tag reused md5sum with (another) trailing dash
 			((nprev++)) ; ((sprev+=b)) # update stats for reused md5sums
 		fi
 	fi
