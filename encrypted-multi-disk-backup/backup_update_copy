@@ -27,7 +27,7 @@ if [[ $1 == *.lst && -f $1 ]] ; then
 	if [[ ${opts[0]} == "dryrun" ]] ; then dryrun=y ; fi
 	#echo "$bdl#$bupdir#$wrkdir#$name#$dn#$dsk#${opts[@]}#" ; exit # debug print parameter setup
 else
-	echo "usage: $0 [pwdfile] backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] ]" >&2
+	echo "usage: $0 [pwdfile] backupsetname_disknum.lst [ mountonly | dryrun | md5 [prev_md5_file.md5 ] | noscan ]" >&2
 	echo "this script will process the .lst 'todo' recipe for a given backup set disk. it will 'pull' the files" >&2
 	echo "and write them on a local mounted file system (this is because files also can be deleted/moved/renamed)" >&2
 	echo "which is tricky to do through rsync alone." >&2
@@ -75,7 +75,6 @@ fi
 
 echo "Updating backup disk $dn from disk set \"$name\" ($bdl) in $bupdir" | tee -a "$log"
 if [[ -n $dryrun ]] ; then echo ">>DRY RUN<<" | tee -a "$log" ; fi
-dlist=$(mktemp) # collect a list of touched directories to speed up cleanup
 
 # .lst 'todo' recipe format (output from md5diff):
 #   f1   f2      f3      f4           f5        f6        f7        f8
@@ -92,15 +91,15 @@ if [[ -n $movingstr ]] ; then # previous run had already progressed to $MOVINGST
 else
 	grep '^-' "$bdl" | cut -f 5 | while read f ; do
 		if [[ -n $dryrun ]] ; then
-			echo "Will remove: $bupdir/$dsk/$f" | tee -a "$log"
+			echo "Will delete: $bupdir/$dsk/$f" | tee -a "$log"
 		else
 			if [[ ! -f "$bupdir/$dsk/$f" ]] ; then
 				echo "WARNING: can't delete: $f not found on $dsk" | tee -a "$log"
 			else
+				echo "INFO: deleting $bupdir/$dsk/$f" | tee -a "$log"
 				rm "$bupdir/$dsk/$f" 2>> "$err" ; # no -v output to log or stdout, only stderr if rm fails
 			fi
 		fi
-		echo "$(dirname "$bupdir/$dsk/$f")" >> $dlist # directory could now be empty
 	done
 fi
 
@@ -114,23 +113,21 @@ else
 		if [[ -n $dryrun ]] ; then
 			echo "Will move: $bupdir/$dsk/$f5 to $bupdir/$dsk/$f7" | tee -a "$log"
 		else
+			echo "INFO: moving $bupdir/$dsk/$f5 to $bupdir/$dsk/$f7" | tee -a "$log"
 			mkdir -p "$(dirname "$bupdir/$dsk/$f7")"
 			mv "$bupdir/$dsk/$f5" "$bupdir/$dsk/$f7" 2>> "$err" ; # no -v output to log or stdout, only stderr
 		fi
-		echo "$(dirname "$bupdir/$dsk/$f5")" >> $dlist # directory could now be empty
 	done
 fi
 
 # cleanup any trailing empty directories
 if [[ -n $dryrun ]] ; then
 	echo "Skipping empty directory cleanup (in dry run, the relevant directories are not emptied and not removed)" | tee -a "$log"
-	sort -u $dlist | while read f ; do echo "Will (try to) remove directory: $f" ; done | tee -a "$log"
+	find "$bupdir/$dsk" -depth -mindepth 1 -type d -empty -print | while read f ; do echo "Will (try to) remove directory: $f" ; done | tee -a "$log"
 else
 	echo "$CLEANUPSTR $dsk" | tee -a "$log"
-#	find "$bupdir/$dsk" -depth -mindepth 1 -type d -empty -exec rmdir {} \; 2>> "$err" # no output to log or stdout, only stderr
-	sort -u $dlist | while read f ; do rmdir "$f" 2>/dev/null ; done # could use xargs here
+	find "$bupdir/$dsk" -depth -mindepth 1 -type d -empty -exec rmdir -v {} \; 2>> "$err" | tee -a "$log" # output to log, stdout and stderr
 fi
-rm $dlist
 df -B 1 "$bupdir/$dsk" | tee -a "$log" # log how much space was deleted / will be reused
 
 echo "Copying modified and new files to $dsk" | tee -a "$log"
@@ -162,10 +159,12 @@ rm $flist
 # strip the $bupdir base path from the files listed so they start with $dsk/...
 df -B 1 "$bupdir/$dsk" | tee -a "$log" # log the final utilisation of the disk
 if [[ -n $dryrun ]] ; then
-	echo "Skipping verification of $bupdir/$dsk to .fst or .md5] (dry run)" | tee -a "$log"
+	echo "Skipping verification of $bupdir/$dsk to .fst or .md5] (dryrun)" | tee -a "$log"
 	# and don't unmount
 else
-	if [[ ${opts[0]} == md5 ]] ; then
+	if [[ ${opts[0]} == noscan ]] ; then
+		echo "Skipping verification of $bupdir/$dsk to .fst or .md5] (noscan)" | tee -a "$log"
+	elif [[ ${opts[0]} == md5 ]] ; then
 		# create an .md5 file listing
 		if [[ -z ${opts[1]} ]] ; then
 			# full md5 scan
