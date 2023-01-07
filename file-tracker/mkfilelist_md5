@@ -53,7 +53,9 @@ sprev=0 # file size of files found in previous scan tracker
 # parse GNU find -printf format (on Mac OS X, you must use gfind from macports or brew (/opt/local/bin/gfind, not /usr/bin/find)
 while IFS=$'\t' read a b f ; do
 	if [[ -d $f ]] ; then
-		if [[ $f == *[-~] && -z $all ]] ; then echo "INFO: skipping $f/" >&2 ; fi
+		if   [[ $f == *- && -z $all ]] ; then echo "INFO: skipping multi-linked files in $f/" >&2
+		elif [[ $f == *~ && -z $all ]] ; then echo "INFO: skipping directory $f/" >&2
+		fi
 		continue; # nothing else to report for directories
 	fi
 	((nscan++)) ; ((sscan+=b)) # update stats for totals
