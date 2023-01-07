@@ -9,10 +9,12 @@ I was triggered on this by new funcionality in the Finder that allowed a user no
 
 https://github.com/jdberry/tag
 
-The scripts provided here attempt to do the same natively from the Synology side of the afpd tether. It works in two stages:
-- the `get_attr` script retrieves the extended attribute raw data from a file's associated `@SynoEAStream` file. This can be used for any extended attribute, even your own.
-- the `tag` script interprets this raw data and translates it according to the Apple data structures laid out for the `com.apple.metadata:_kMDItemUserTags` extended attribute. It prints the tags on separate lines, just like jdberry's `tag -gN` would do (`--garrulous --no-name`).
-- the `listtags` script calls `tag` for all files (and directories, recursively) passed on the commandline. It prints the tags as comma-separated list on one line per file, just like jdberry's `tag -lR` would do, but skipping files that have no tags and printing the full path. Useful to keep a backup copy of all tags, or to check/track tags when making changes to the file system.
+The scripts/programs provided here attempt to do the same natively from the Synology side of the afpd tether. Bash (.sh) and C++ (.cpp) versions are available - they do the same thing, only the compiled C++ program is much faster.
+
+Extracting the tags works in two stages:
+- the `get_attr(.sh)` script (or compiled `get_attr.cpp` program) retrieves the extended attribute raw data from a file's associated `@SynoEAStream` file. This can be used for any extended attribute, even your own. Output can be in hex or plain text.
+- the `tag(.sh)` script (or compiled `tag.cpp` program) interprets this raw data and translates it according to the Apple bplist data structures laid out for the `com.apple.metadata:_kMDItemUserTags` extended attribute. It prints the tags on separate lines, just like jdberry's `tag -gN` would do (`--garrulous --no-name`).
+- the `listtags` script calls `tag` (program or script, that's your call) for all files (and directories, recursively) passed on the commandline. It prints the tags as comma-separated list on one line per file, just like jdberry's `tag -lR` would do, but skipping files that have no tags and printing the full path. Useful to keep a backup copy of all tags, or to check/track tags when making changes to the file system.
 - the script `check_filename_lengths` checks if the file names used are not too long. This is an issue because on any file system, the maximum file name length is limited; if you want to use extended attributes on top, the file name has to have room for the added suffix `@SynoResource` or `@SynoEAStream`, limiting the effective max. file name length to 13 less than the hard limit.
   - Using eCryptfs, Synology _does_ allow you to set extended attributes on filenames with a length between 131 and 143, however, it uses an undocumented mangling algorithm to keep the `@SynoResource` and/or `@SynoEAStream` file name at 143 characters exactly:
 
