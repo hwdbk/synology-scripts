@@ -5,10 +5,10 @@
 #     the parameter is either the @SynoEAStream file itself of the (mother) file to which the @SynoEAStream file belongs.
 #     the script assumes that the com.apple.metadata:_kMDItemUserTags extended attribute is present in the file, so it is wise to grep first before calling this script
 #     a very efficient way of doing this is with:
-#         grep -arlF "com.apple.metadata:_kMDItemUserTags" <path> --include='*@SynoEAStream' | while read f ; do tag "$f" ; done
+#         grep -rlF "com.apple.metadata:_kMDItemUserTags" <path> --include='*@SynoEAStream' | while read f ; do tag "$f" ; done
 #     or look at the listtags script.
 #     if you know which tag you're looking for (e.g. "Red"), a very efficient way is to further prefilter the list with:
-#         grep -arlF "com.apple.metadata:_kMDItemUserTags" <path> --include='*@SynoEAStream' | xargs -d'\n' grep -alF <tag> | while read f ; do tag "$f" ; done
+#         grep -rlF "com.apple.metadata:_kMDItemUserTags" <path> --include='*@SynoEAStream' | xargs -d'\n' grep -lF <tag> | while read f ; do tag "$f" ; done
 #     or look at the mk_tag_links script.
 # output:
 #     prints the Finder tags (user tags and Finder labels) associated with file, each on a separate line,

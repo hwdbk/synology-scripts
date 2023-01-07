@@ -6,7 +6,7 @@
 #     the file parameter is either the @SynoEAStream file itself of the (mother) file to which the @SynoEAStream file belongs. if the @SynoEAStream file isn't there, you'll get an error.
 #     the script assumes that the attr_name extended attribute is present in the file. if not, you'll get an error, unless called with -q (quiet).
 #     a very efficient way of checking whether the attribute is present in the file is with:
-#         grep -arlF <attr_name> <path> --include='*@SynoEAStream' | while read f ; do tag "$f" ; done
+#         grep -rlF <attr_name> <path> --include='*@SynoEAStream' | while read f ; do tag "$f" ; done
 #     (look at the listtags script, which uses this mechanism)
 # output:
 #     the script prints the value of the attribute
@@ -42,7 +42,7 @@ valoff=$((16#${keyhdr:0:8})) # and consist of a 4-byte offset to the xattr value
 vallen=$((16#${keyhdr:8:8})) # and a 4-byte length of the xattr value
 keylen=$((16#${keyhdr:20:2})) # and two bytes padding + one byte strlen of the key (incl. the trailing 00)
 if (( keylen*2 != ${#keyhex} )) ; then if [[ ! -n $quiet ]] ; then echo "$0: $f: xattr keylen mismatch: $1" >&2 ; fi ; exit 1 ; fi
-#printf "value at 0x%08x with length 0x%08x\n" $valoff $vallen
+#printf "value at 0x%08x with length 0x%08x\n" $valoff $vallen >&2
 if [[ -n $usehex ]] ; then
 	echo "${hex:$((valoff*2)):$((vallen*2))}"
 else
