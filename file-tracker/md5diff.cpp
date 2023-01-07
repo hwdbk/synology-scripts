@@ -10,8 +10,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#define TAB '\t'
-#define LF  '\n'
+const char TAB = '\t';
+const char LF  = '\n';
 
 // compound comparisons
 #define EQ1(L1,       R1      ) ((L1) == (R1))
