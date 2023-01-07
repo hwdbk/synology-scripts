@@ -2,6 +2,8 @@
 if (( $# == 0 )) ; then
 	echo "usage: $(basename "$0") [-a] [-l] path [...]" >&2
 	echo "       -a also descend into *-/ directories (normally filtered out)" >&2
+	echo "output: prints a list of files with their Finder tags" >&2
+	echo "        line format: path<tab>tag[,tag2...]" >&2
 	echo "note:  $(basename "$0") lists the tags in the order they are stored in the filesystem, unlike the output of" >&2
 	echo "       jdberry's Python tag script, which sorts the tags. preserving this order is important for the Finder" >&2
 	echo "       label colours (i.e. showing Purple on top of Green or Green on top of Purple)." >&2
@@ -20,17 +22,17 @@ for n in "$@" ; do
 		n="$(dirname "$n")/@eaDir/$(basename "$n")@SynoEAStream"
 	fi
 	grep -rlF "com.apple.metadata:_kMDItemUserTags" "$n" --include='*@SynoEAStream' | while read f ; do # filter only on SynoEAStream files that have the _kMDItemUserTags metadata field
+		# note: there may be hard linked files with a label (=colour tag) that have no @SynoEAStream file - on the mac side, these files
+		#       appear to have a tag (label) but do not show up here. the labels are linked under water by the cnid db in afpd. on the
+		#       syno side, the tag (label) will be picked up on the original file, which _does_ have the @SynoEAStream file
+		# note: (nested) directories with tag(s) within directories with links (marked by directory-/ e.g. path/genres-/Drama, or path/genres-/Sets/James Bond)
+		#       must not be filtered, only the files within those, i.e. skip files _within_ "Drama", "Sets" or "James Bond", not these directories themselves, which may have a useful tag.
+		# note: this is equivalent to filtering the grep output through | grep -v -- '-/.*\.[^ ]' | sed -e 's#/@eaDir/#/#' -e 's#@SynoEAStream##', but that doesn't do the -all
+		#       and is only marginally faster than the below (calling 'tag' is the bottleneck)
 		i=${f/@eaDir\/} ; i=${i%@SynoEAStream}
-		t=$(tag "$f" | tr '\n' ',')  ; t=${t%,}
-		if [[ -n $t ]] ; then
-			# note: there may be hard linked files with a label (=colour tag) that have no @SynoEAStream file - on the mac side, these files
-			#       appear to have a tag (label) but do not show up here. the labels are linked under water by the cnid db in afpd. on the
-			#       syno side, the tag (label) will be picked up on the original file, which _does_ have the @SynoEAStream file
-			# note: (nested) directories with tag(s) within directories with links (marked by directory-/ e.g. path/genres-/Drama, or path/genres-/Sets/James Bond)
-			#       must not be filtered, only the files within those, i.e. skip files _within_ "Drama", "Sets" or "James Bond", not these directories themselves, which may have a useful tag.
-			# note: the grep -a is to prevent grep interpreting the file name as binary "(Binary file (standard input) matches)" on file names with broken UTF-8 codes
-			# output result: path<tab>tag[,tag2...]
-			if [[ -n $all || -d $i || ( -f $i && $i != *-/* ) ]] ; then # exclude files with tag(s) found within linked directories (directories whose name end with -)
+		if [[ -n $all || -d $i || ( -f $i && $i != *-/* ) ]] ; then # exclude files with tag(s) found within linked directories (directories whose name end with -)
+			t=$(tag "$f" | tr '\n' ',')  ; t=${t%,}
+			if [[ -n $t ]] ; then
 				echo -e "$i\t$t"
 			fi
 		fi
