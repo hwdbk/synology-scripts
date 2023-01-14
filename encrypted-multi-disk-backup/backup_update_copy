@@ -106,16 +106,31 @@ fi
 echo "$MOVINGSTR $dsk" | tee -a "$log"
 if [[ -n $cleanupstr ]] ; then # previous run had already progressed to $CLEANUPSTR
 	echo "- skipping (was already performed according to $log)" | tee -a "$log"
-else
-	grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f1 f3 f4 f5 f6 f7 ; do #
-		if [[ ! -f "$bupdir/$dsk/$f5" ]] ; then echo "WARNING: can't move: $f5 not found on $dsk" | tee -a "$log" ; fi # just checking...
+else # process moving/renaming in two passes: first to a .tmp file, then to the final name (catches cases where files were renamed to (a set of) files that already existed, like files or directories that were swapped)
+	# PASS 1 - move $f5 to .tmp/$f7 (called f8 for convenience)
+	grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f2 f3 f4 f5 f6 f7 ; do #
+		f8=".tmp/$f7"
+		if [[ ! -f "$bupdir/$dsk/$f5" ]] ; then echo "WARNING: can't move: $f5 not found on $dsk" | tee -a "$log" ; continue ; fi # just checking...
+		if [[   -f "$bupdir/$dsk/$f8" ]] ; then echo "WARNING: can't move: $f8 already exists on $dsk - skipping" | tee -a "$log" ; continue ; fi # just checking...
+		if [[ -n $dryrun ]] ; then
+			echo "Will move: $bupdir/$dsk/$f5 to $bupdir/$dsk/$f8" | tee -a "$log"
+		else
+			echo "INFO: moving $bupdir/$dsk/$f5 to $bupdir/$dsk/$f8" | tee -a "$log"
+			mkdir -p "$(dirname "$bupdir/$dsk/$f8")"
+			mv "$bupdir/$dsk/$f5" "$bupdir/$dsk/$f8" 2>> "$err" ; # no -v output to log or stdout, only stderr
+		fi
+	done
+	# PASS 2 - move .tmp/$f7 (called f8 for convenience) to $f7
+	grep '^[=>]' "$bdl" | while IFS=$'\t' read f1 f2 f3 f4 f5 f6 f7 ; do #
+		f8=".tmp/$f7"
+		if [[ ! -f "$bupdir/$dsk/$f8" ]] ; then echo "WARNING: can't move: $f8 not found on $dsk" | tee -a "$log" ; continue ; fi # just checking...
 		if [[   -f "$bupdir/$dsk/$f7" ]] ; then echo "WARNING: can't move: $f7 already exists on $dsk - skipping" | tee -a "$log" ; continue ; fi # just checking...
 		if [[ -n $dryrun ]] ; then
-			echo "Will move: $bupdir/$dsk/$f5 to $bupdir/$dsk/$f7" | tee -a "$log"
+			echo "Will move: $bupdir/$dsk/$f8 to $bupdir/$dsk/$f7" | tee -a "$log"
 		else
-			echo "INFO: moving $bupdir/$dsk/$f5 to $bupdir/$dsk/$f7" | tee -a "$log"
+			echo "INFO: moving $bupdir/$dsk/$f8 to $bupdir/$dsk/$f7" | tee -a "$log"
 			mkdir -p "$(dirname "$bupdir/$dsk/$f7")"
-			mv "$bupdir/$dsk/$f5" "$bupdir/$dsk/$f7" 2>> "$err" ; # no -v output to log or stdout, only stderr
+			mv "$bupdir/$dsk/$f8" "$bupdir/$dsk/$f7" 2>> "$err" ; # no -v output to log or stdout, only stderr
 		fi
 	done
 fi
@@ -159,11 +174,11 @@ rm $flist
 # strip the $bupdir base path from the files listed so they start with $dsk/...
 df -B 1 "$bupdir/$dsk" | tee -a "$log" # log the final utilisation of the disk
 if [[ -n $dryrun ]] ; then
-	echo "Skipping verification of $bupdir/$dsk to .fst or .md5] (dryrun)" | tee -a "$log"
+	echo "Skipping verification of $bupdir/$dsk to .fst or .md5 (dryrun)" | tee -a "$log"
 	# and don't unmount
 else
 	if [[ ${opts[0]} == noscan ]] ; then
-		echo "Skipping verification of $bupdir/$dsk to .fst or .md5] (noscan)" | tee -a "$log"
+		echo "Skipping verification of $bupdir/$dsk to .fst or .md5 (noscan)" | tee -a "$log"
 	elif [[ ${opts[0]} == md5 ]] ; then
 		# create an .md5 file listing
 		if [[ -z ${opts[1]} ]] ; then
