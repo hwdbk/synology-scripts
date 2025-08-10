@@ -65,10 +65,10 @@ class BupInfo : public FileInfo
 //struct lt_md5sum_fname_moddate { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return sUseModDate ? LT3((sUseMD5?lhs.md5sum:lhs.fsize),lhs.fname,lhs.moddate, (sUseMD5?rhs.md5sum:rhs.fsize),rhs.fname,rhs.moddate) : LT2(lhs.md5sum,lhs.fname, rhs.md5sum,rhs.fname); } };
 
 //20210815: changed to moddate comparison (introduced md5equiv() helper function)
-struct lt_path                 { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return LT1(lhs.path, rhs.path); } };
-struct lt_md5sum_path          { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return LT2(lhs.md5equiv(),lhs.path, rhs.md5equiv(),rhs.path); } };
-struct lt_md5sum_moddate       { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return sUseModDate ? LT2(lhs.md5equiv(),lhs.moddate,           rhs.md5equiv(),rhs.moddate)           : LT1(lhs.md5sum,           rhs.md5sum);           } };
-struct lt_md5sum_fname_moddate { bool operator()(const BupInfo& lhs, const BupInfo &rhs) { return sUseModDate ? LT3(lhs.md5equiv(),lhs.fname,lhs.moddate, rhs.md5equiv(),rhs.fname,rhs.moddate) : LT2(lhs.md5sum,lhs.fname, rhs.md5sum,rhs.fname); } };
+struct lt_path                 { bool operator()(const BupInfo& lhs, const BupInfo &rhs) const { return LT1(lhs.path, rhs.path); } };
+struct lt_md5sum_path          { bool operator()(const BupInfo& lhs, const BupInfo &rhs) const { return LT2(lhs.md5equiv(),lhs.path, rhs.md5equiv(),rhs.path); } };
+struct lt_md5sum_moddate       { bool operator()(const BupInfo& lhs, const BupInfo &rhs) const { return sUseModDate ? LT2(lhs.md5equiv(),lhs.moddate,           rhs.md5equiv(),rhs.moddate)           : LT1(lhs.md5sum,           rhs.md5sum);           } };
+struct lt_md5sum_fname_moddate { bool operator()(const BupInfo& lhs, const BupInfo &rhs) const { return sUseModDate ? LT3(lhs.md5equiv(),lhs.fname,lhs.moddate, rhs.md5equiv(),rhs.fname,rhs.moddate) : LT2(lhs.md5sum,lhs.fname, rhs.md5sum,rhs.fname); } };
 
 std::ostream& operator<< (std::ostream& strm, const FileInfo& info)
 {
