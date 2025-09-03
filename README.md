@@ -1,7 +1,10 @@
 # synology-scripts
 UPDATE: As of August 2025, I will no longer be maintaining this code set, simply because I've moved away from Synology. Instead, I've started to port the same code set to a generic linux distribution (Ubuntu in my case, but they should work on any Linux distribution), giving the same functionality without the Synology quirks, and for me a better and supportable future. END UPDATE
 
-A collection of (bash) scripts that I've developed over the years to make the use of a Synology NAS more productive (and fun). Some scripts are very Synology-specific (such as the ones dealing with extended attributes) but others are quite generic and may be of use to other 'nix users as well. I'm currently running DSM7 and, as far as these scripts were concerned, I've found no problems when upgrading from DSM6.2 to DSM7.0.
+A collection of (bash) scripts that I've developed over the years for a Synology NAS
+These scripts are very Synology-specific (such as the ones dealing with extended attributes, stored in sidecare files)
+For the more generic scripts, look in the **linux-nas-scripts** repository.
+I'm currently running DSM7 and, as far as these scripts were concerned, I've found no problems when upgrading from DSM6.2 to DSM7.0.
 
 There are scripts for:
 - **extended-attributes-and-tags**: retrieving and managing extended attributes that are set from Mac OS, such as custom tags and labels and user xattrs, and access them natively from within the Synology NAS.
