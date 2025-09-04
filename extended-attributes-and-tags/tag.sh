@@ -74,7 +74,7 @@ if ! get_attr -x -q com.apple.metadata:_kMDItemUserTags "$f" ; then exit 1 ; fi 
 				read -n 4 x ; if [[ $x == "000a" && $l == "2" ]] ; then read -n 4 x ; break; fi
 				echo -n "$x" | xxd -ps -r
 				((l--))
-			done | iconv -f utf-16 -t utf-8
+			done | iconv -f utf-16be -t utf-8
 			echo
 		fi
 		((k--))
