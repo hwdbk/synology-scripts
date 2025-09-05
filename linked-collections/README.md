@@ -7,9 +7,9 @@ The latter case allows you to filter which tags makes it into the collection.
 
 - `mk_tag_links` creates hard links to files in a collection directory, but only if the directory with the tag name exists.
 - `mk_tag_links_and_dirs` creates hard links to files in a collection directory, and auto-creates the output directories.
-- `mk_tag_dirlinks` creates symlinks to directories in a collection directory, but only if the directory with the tag name exists.
-- `mk_tag_dirlinks_and_dirs` creates symlinks to directories in a collection directory, and auto-creates the output directories.
-- `cleanup_links` is used by the above scripts to cleanup remnants in the collection directory. Remnants are: files whose tag has
+- `mk_tag_dirlinks` [has been moved to **linux-nas-scripts**] creates symlinks to directories in a collection directory, but only if the directory with the tag name exists.
+- `mk_tag_dirlinks_and_dirs` [has been moved to **linux-nas-scripts**] creates symlinks to directories in a collection directory, and auto-creates the output directories.
+- `cleanup_links` [has been moved to **linux-nas-scripts**] is used by the above scripts to cleanup remnants in the collection directory. Remnants are: files whose tag has
 been removed or renamed, or files that are no longer in the source tree. The script has several options to move deleted files to a trash
 directory and/or to cleanup any empty collection subdirectories (when a certain tag is no longer used).
 
