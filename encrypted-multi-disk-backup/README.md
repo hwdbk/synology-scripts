@@ -1,6 +1,7 @@
 # Incremental (encrypted) multi-disk backup
 
-`backup_update_generate` and `backup_update_copy` have been moved to **linux-nas-scripts**
+- `backup_update_generate` has been moved to **linux-nas-scripts**
+- `backup_update_copy` has been moved to **linux-nas-scripts**
 
 # Extras
 
