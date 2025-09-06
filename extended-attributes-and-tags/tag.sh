@@ -1,7 +1,7 @@
 #!/bin/bash
 # script to interpret binary @SynoEAStream files and extract the tags (labels) from the com.apple.metadata:_kMDItemUserTags bplist structure
 # input:
-#     usage: tag file
+#     usage: tag -lNg file|directory
 #     the parameter is either the @SynoEAStream file itself of the (mother) file to which the @SynoEAStream file belongs.
 #     the script assumes that the com.apple.metadata:_kMDItemUserTags extended attribute is present in the file, so it is wise to grep first before calling this script
 #     a very efficient way of doing this is with:
@@ -12,13 +12,21 @@
 #     or look at the mk_tag_links script.
 # output:
 #     prints the Finder tags (user tags and Finder labels) associated with file, each on a separate line,
-#     effectively implementing the 'tag -l -N -g' -equivalent of the jdberry Python script version (--list --no-name --garrulous).
+#     effectively implementing the 'tag -lNg' -equivalent of the jdberry Objective-C version (--list --no-name --garrulous).
+#     for consistent use across linux and mac os (jdberry's tag), the use of the options -lNg is explicit and enforced and no other options/output
+#     mode is supported here. (note: jdberry's tag implements -lnG if no options are given in the arguments)
 #     if the file does not contain tags (empty com.apple.metadata:_kMDItemUserTags bplist), the script prints nothing.
 #     prints a msg on stderr when the input is not according to expectation (parse error).
 # note:
 #     the formatting of the com.apple.metadata:_kMDItemUserTags varies considerably, depending which application wrote the extended attributes (tag, Finder) or
 #     whether the list is empty or not (no com.apple.metadata:_kMDItemUserTags at all or empty bplist).
 #     the bplist format is perfectly explained in https://medium.com/@karaiskc/understanding-apples-binary-property-list-format-281e6da00dbd
+
+if [[ $1 == -lNg ]] ; then shift # this is the default for the implementation below
+else
+	echo "error: unknown option $1 - $0 only supports -lNg (explicit and enforced options)" >&2
+	echo "usage: tag -lNg file|directory" >&2 ; exit 1
+fi
 
 # generate hex strings. use -c <wide column> to prevent printing of spaces
 BPLIST=$(echo -n "bplist" | xxd -ps -c 100)
