@@ -6,7 +6,7 @@ These scripts are very Synology-specific (such as the ones dealing with extended
 For the more generic scripts, look in the **linux-nas-scripts** repository instead.
 I'm currently running DSM7 and, as far as these scripts were concerned, I've found no problems when upgrading from DSM6.2 to DSM7.0.
 
-[NOTE ON COMPILING CODE FOR SYNOLOGY] Since Spring 2022, when I found it no longer safe to use Entware binaries (g++, in this particular case), and I have not been able to compile and test the C++ programs. Any changes since then I have not been able to test/verify. I strongly recommend to compile the code in a safe Docker container or on a standalone linux distribution that has the same kernel version as Synology uses for your model (and you'll find out this is pretty ancient). The resulting binaries _should_ work.
+[NOTE ON COMPILING CODE FOR SYNOLOGY] Since Spring 2022, when I found it no longer safe to use Entware binaries (g++, in this particular case), I have not been able to compile the C++ programs. Any changes since then, I have not been able to test/verify. I strongly recommend to compile the code in a safe Docker container or on a standalone linux distribution that has the same kernel version as Synology uses for your model (and you'll find out this is pretty ancient). The resulting binaries _should_ work.
 
 There are scripts for:
 - **extended-attributes-and-tags**: retrieving and managing extended attributes that are set from Mac OS, such as custom tags and labels and user xattrs, and access them natively from within the Synology NAS.
