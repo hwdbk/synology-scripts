@@ -92,7 +92,7 @@ grep -rlF -f $xat "$@" --include='*@SynoEAStream' | while read f ; do
 	if [[ $found == "n" ]] ; then
 		if true ; then
 			# final paranoia check
-			if [[ -n $(tag "$f") ]] ; then
+			if [[ -n $(tag -lNg "$f") ]] ; then
 				echo "error: $f has a custom tag - there's something wrong - exit" >&2 ; exit 1
 			fi
 			for i in $(cat $xat | grep -v com.apple) ; do
