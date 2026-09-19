@@ -1,5 +1,5 @@
 # synology-scripts
-[UPDATE] As of August 2025, I will no longer be maintaining this code set, simply because I've moved away from Synology. Instead, I've started to port the [same code set to a generic linux distribution (Ubuntu in my case](https://github.com/hwdbk/linux-nas-scripts), but they should work on any Linux distribution), giving the same functionality without the Synology quirks, and for me a better and supportable future. [END UPDATE]
+[UPDATE] As of August 2025, I will no longer be maintaining this code set, simply because I've moved away from Synology. Instead, I've ported the [same code set to a generic linux distribution (Ubuntu in my case](https://github.com/hwdbk/linux-nas-scripts), but they should work on any Linux distribution), giving the same functionality without the Synology quirks, and for me a better and supportable future. [END UPDATE]
 
 A collection of (bash) scripts (and some C++ code) that I've developed over the years for a Synology NAS.
 These scripts are very Synology-specific (such as the ones dealing with extended attributes, stored in @eaDir/*@Syno* sidecar files)
